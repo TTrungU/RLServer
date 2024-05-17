@@ -1,15 +1,12 @@
 import numpy as np
-import pickle
-import json
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
 from datetime import datetime
-
 window_size = 20
 skip = 1
 layer_size = 500
 output_size = 3
-
+input_size = 163
 def softmax(z):
     assert len(z.shape) == 2
     s = np.max(z, axis=1)
@@ -19,7 +16,7 @@ def softmax(z):
     div = div[:, np.newaxis]
     return e_x / div
 
-def get_state(parameters, t, window_size = 20):
+def get_state(parameters, t, window_size = window_size):
     outside = []
     d = t - window_size + 1
     for parameter in parameters:
@@ -35,7 +32,6 @@ def get_state(parameters, t, window_size = 20):
             res.append(block[i] - block[0])
         outside.append(res)
     return np.array(outside).reshape((1, -1))
-
 
 class Deep_Evolution_Strategy:
 
@@ -59,7 +55,7 @@ class Deep_Evolution_Strategy:
 
     def get_weights(self):
         return self.weights
-    
+
     def train(self, epoch = 100, print_every = 1):
         lasttime = time.time()
         for i in range(epoch):
@@ -90,7 +86,7 @@ class Deep_Evolution_Strategy:
                     % (i + 1, self.reward_function(self.weights))
                 )
         print('time taken to train:', time.time() - lasttime, 'seconds')
-        
+
 class Model:
     def __init__(self, input_size, layer_size, output_size):
         self.weights = [
@@ -112,7 +108,6 @@ class Model:
 
     def set_weights(self, weights):
         self.weights = weights
-
 
 class Agent:
 
@@ -139,27 +134,23 @@ class Agent:
     def _initiate(self):
         # i assume first index is the close value
         self.trend = self.timeseries[0]
+        self.num_features = len(self.timeseries)
         self._mean = np.mean(self.trend)
         self._std = np.std(self.trend)
         self._inventory = []
         self._capital = self.initial_money
         self._queue = []
-        self._scaled_capital = self.minmax.transform([[self._capital, 2]])[0, 0]
+        self._scaled_capital = self.minmax.transform([[self._capital] * self.num_features])[0, 0]
 
     def reset_capital(self, capital):
         if capital:
             self._capital = capital
-        self._scaled_capital = self.minmax.transform([[self._capital, 2]])[0, 0]
+        self._scaled_capital = self.minmax.transform([[self._capital] * self.num_features])[0, 0]
         self._queue = []
         self._inventory = []
 
     def trade(self, data):
-        """
-        you need to make sure the data is [close, volume]
-        """
-        # Extract Date attribute
-        date = data.pop(0)
-        
+
         scaled_data = self.minmax.transform([data])[0]
         real_close = data[0]
         close = scaled_data[0]
@@ -168,7 +159,6 @@ class Agent:
         self._queue.append(scaled_data)
         if len(self._queue) < window_size:
             return {
-                'date': date,
                 'status': 'data not enough to trade',
                 'action': 'fail',
                 'balance': self._capital,
@@ -187,7 +177,6 @@ class Agent:
             self._scaled_capital -= close
             self._capital -= real_close
             return {
-                'date': date,
                 'status': 'buy 1 unit, cost %f' % (real_close),
                 'action': 'buy',
                 'balance': self._capital,
@@ -198,7 +187,7 @@ class Agent:
             self._scaled_capital += close
             self._capital += real_close
             scaled_bought_price = self.minmax.inverse_transform(
-                [[bought_price, 2]]
+                [[bought_price] * self.num_features]
             )[0, 0]
             try:
                 invest = (
@@ -207,7 +196,6 @@ class Agent:
             except:
                 invest = 0
             return {
-                'date': date,
                 'status': 'sell 1 unit, price %f' % (real_close),
                 'investment': invest,
                 'gain': real_close - scaled_bought_price,
@@ -217,12 +205,24 @@ class Agent:
             }
         else:
             return {
-                'date': date,
                 'status': 'do nothing',
                 'action': 'nothing',
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
             }
+
+    def update_realtime_record_with_action(self, action, record):
+      if action == "sell" and len(self._inventory):
+        real_bought_price = self._inventory.pop(0)
+        self._capital += record['Close']
+        _scaled_capital = self.minmax.transform([[self._capital] * self.num_features])[0, 0]
+        self._scaled_capital = _scaled_capital + self.minmax.transform([[record['Close']] * self.num_features])[0, 0]
+
+      elif action == "buy":
+        self._inventory.append(record['Close'])
+        self._capital += record['Close']
+        _scaled_capital = self.minmax.transform([[self._capital] * self.num_features])[0, 0]
+        self._scaled_capital = _scaled_capital + self.minmax.transform([[record['Close']] * self.num_features])[0, 0]
 
     def change_data(self, timeseries, skip, initial_money, real_trend, minmax):
         self.timeseries = timeseries

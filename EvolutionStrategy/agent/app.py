@@ -93,7 +93,7 @@ def trade_range():
     from_date = pd.to_datetime(from_date)
     to_date = pd.to_datetime(to_date)
      
-    selected_data = df.loc[(df['Date'] >= from_date) & (df['Date'] <= to_date), ['Date','Close', 'Volume']] 
+    selected_data = df.loc[(df['Date'] >= from_date) & (df['Date'] <= to_date), ['Date','Close']] 
  
     if selected_data.empty:
         return jsonify({'message': 'No data available for the selected period.'}), 400    
@@ -101,8 +101,8 @@ def trade_range():
     data_list = selected_data.values.tolist()   
   
     trade_results = []
-    for date, close, volume in data_list:
-        result = agent.trade([date,close, volume])
+    for date, close in data_list:
+        result = agent.trade([date,close])
         trade_results.append(result)
 
     trading_collection.insert_one({
@@ -114,7 +114,7 @@ def trade_range():
 
 
 @app.route('/trade_history', methods = ['GET'])
-def trade_historry():
+def trade_history():
     userId = request.args.get('UserId')
     symbol = request.args.get('StockSymbol')
 

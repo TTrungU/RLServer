@@ -75,9 +75,9 @@ preprocessor = Feature_Extractor()
 data_training_path = os.path.join(os.getcwd(), 'DataTraining')
 
 # Lấy danh sách các tệp tin .csv trong thư mục dataTraining
-stocks = [i for i in os.listdir(data_training_path) if i.endswith('.csv')]
+stocks = [os.path.join(data_training_path,i)  for i in os.listdir(data_training_path) if i.endswith('.csv')]
 
-
+print(stocks)
 
 # for file in stocks:
 #     file_path = os.path.join(data_training_path, file)
@@ -113,7 +113,8 @@ for no, stock in enumerate(stocks):
     parameters = [df[cl].tolist() for cl in df.columns]
     minmax = MinMaxScaler(feature_range = (100, 200)).fit(np.array(parameters).T)
     scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
-    initial_money = np.max(parameters[0]) * 2
+    initial_money = 1000000
+
 
     if no == 0:
         agent = Agent(model = model,
