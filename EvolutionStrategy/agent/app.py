@@ -1,14 +1,17 @@
 from flask import Flask, request, jsonify
+
 import numpy as np
 import pickle
 import json
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
 from datetime import datetime
-from RLmodel import Agent,skip,Model
 from pymongo import MongoClient
 import config
 from bson import json_util
+
+from modules import Agent,Model
+
 app = Flask(__name__)
 
 client = MongoClient(config.MONGO_URI) # your connection string
@@ -83,33 +86,47 @@ def trade():
 
 
 @app.route('/trade_range', methods=['POST'])
+
+"""
+request:
+- ma_co_phieu
+- ngay_bat_dau
+- ngay_ket_thuc
+- ...
+"""
 def trade_range():
     data = request.json
     from_date = data.get('from_date')
-    to_date = data.get('to_date')   
-   
+    to_date = data.get('to_date')
+
     df['Date'] = pd.to_datetime(df['Date'])
-    
+
     from_date = pd.to_datetime(from_date)
     to_date = pd.to_datetime(to_date)
-     
-    selected_data = df.loc[(df['Date'] >= from_date) & (df['Date'] <= to_date), ['Date','Close']] 
- 
+
+    #Preprocess Dataframe
+    df = data_preprocessing(df, Feature_Extractor)
+
+    selected_data = df.loc[(df['Date'] >= from_date) & (df['Date'] <= to_date), ['Date','Close']]
+
     if selected_data.empty:
-        return jsonify({'message': 'No data available for the selected period.'}), 400    
-  
-    data_list = selected_data.values.tolist()   
-  
+        return jsonify({'message': 'No data available for the selected period.'}), 400
+
+    data_list = selected_data.values.tolist()
+
     trade_results = []
-    for date, close in data_list:
-        result = agent.trade([date,close])
+    for row in data_list:
+        #ensure first column is Date
+        date = row[0]
+        value = row[1:]
+        result = agent.trade(value, date = date)
         trade_results.append(result)
 
     trading_collection.insert_one({
         "UserId": data.get('UserId'),
         "StockSymbol": data.get('Symbol'),
         "HistoryTrading":trade_results
-    }) 
+    })
     return jsonify(trade_results)
 
 
