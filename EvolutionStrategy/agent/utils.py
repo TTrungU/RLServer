@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 def softmax(z):
     assert len(z.shape) == 2
