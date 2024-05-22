@@ -1,37 +1,13 @@
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
-import pandas as pd
-from datetime import datetime
-window_size = 20
-skip = 1
-layer_size = 500
-output_size = 3
-input_size = 163
-def softmax(z):
-    assert len(z.shape) == 2
-    s = np.max(z, axis=1)
-    s = s[:, np.newaxis]
-    e_x = np.exp(z - s)
-    div = np.sum(e_x, axis=1)
-    div = div[:, np.newaxis]
-    return e_x / div
+import time
+import math
+from datetime import timedelta
 
-def get_state(parameters, t, window_size = window_size):
-    outside = []
-    d = t - window_size + 1
-    for parameter in parameters:
-        block = (
-            parameter[d : t + 1]
-            if d >= 0
-            else -d * [parameter[0]] + parameter[0 : t + 1]
-        )
-        res = []
-        for i in range(window_size - 1):
-            res.append(block[i + 1] - block[i])
-        for i in range(1, window_size, 1):
-            res.append(block[i] - block[0])
-        outside.append(res)
-    return np.array(outside).reshape((1, -1))
+import torch
+import torch.nn as nn
+
+from utils import softmax, get_state
+
 
 class Deep_Evolution_Strategy:
 
@@ -109,13 +85,14 @@ class Model:
     def set_weights(self, weights):
         self.weights = weights
 
+
 class Agent:
 
     POPULATION_SIZE = 15
     SIGMA = 0.1
     LEARNING_RATE = 0.03
 
-    def __init__(self, model, timeseries, skip, initial_money, real_trend, minmax):
+    def __init__(self, model, timeseries, skip, initial_money, real_trend, minmax, window_size):
         self.model = model
         self.timeseries = timeseries
         self.skip = skip
@@ -129,6 +106,7 @@ class Agent:
             self.LEARNING_RATE,
         )
         self.minmax = minmax
+        self.window_size = window_size
         self._initiate()
 
     def _initiate(self):
@@ -149,7 +127,7 @@ class Agent:
         self._queue = []
         self._inventory = []
 
-    def trade(self, data):
+    def trade(self, data, date = None):
 
         scaled_data = self.minmax.transform([data])[0]
         real_close = data[0]
@@ -163,6 +141,7 @@ class Agent:
                 'action': 'fail',
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
+                'date': date,
             }
         state = self.get_state(
             window_size - 1,
@@ -181,6 +160,7 @@ class Agent:
                 'action': 'buy',
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
+                'date': date,
             }
         elif action == 2 and len(self._inventory):
             bought_price = self._inventory.pop(0)
@@ -202,6 +182,7 @@ class Agent:
                 'balance': self._capital,
                 'action': 'sell',
                 'timestamp': str(datetime.now()),
+                'date': date,
             }
         else:
             return {
@@ -243,7 +224,7 @@ class Agent:
         return np.argmax(decision[0]), softmax(decision)[0]
 
     def get_state(self, t, inventory, capital, timeseries):
-        state = get_state(timeseries, t)
+        state = get_state(timeseries, t, window_size = self.window_size)
         len_inventory = len(inventory)
         if len_inventory:
             mean_inventory = np.mean(inventory)
@@ -341,3 +322,36 @@ class Agent:
         ) * 100
         total_gains = real_starting_money - real_initial_money
         return states_buy, states_sell, total_gains, invest
+
+
+class LSTM_Model(nn.Module):
+  def __init__(self, input_size = 1, output_size = 1, hidden_layer_size = 128, num_rnn_layers = 2, dropout = 0.2):
+    super().__init__()
+    self.hidden_layer_size = hidden_layer_size
+
+    self.rnn = nn.LSTM(input_size, hidden_size = self.hidden_layer_size,
+                       num_layers= num_rnn_layers, dropout = dropout, batch_first = True)
+    self.fc = nn.Linear(num_rnn_layers* self.hidden_layer_size, output_size)
+
+    self.init_weights()
+
+  def init_weights(self):
+    for name, m in self.named_modules():
+      if isinstance(m, nn.Linear):
+          torch.nn.init.xavier_uniform_(m.weight)
+          m.bias.data.fill_(0.01)
+      for name, param in self.rnn.named_parameters():
+          if 'bias' in name:
+                nn.init.constant_(param, 0.0)
+          elif 'weight_ih' in name:
+                nn.init.kaiming_normal_(param)
+          elif 'weight_hh' in name:
+                nn.init.orthogonal_(param)
+
+  def forward(self, x):
+    lstm_out, (h_n, le)  = self.rnn(x)
+
+    #prediction = self.fc(torch.flatten(h_n.permute(1, 0, 2), start_dim = 1))
+    prediction = self.fc(torch.flatten(h_n.permute(1, 0, 2), start_dim = 1))
+
+    return prediction
