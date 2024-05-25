@@ -10,7 +10,7 @@ import yaml
 import pickle
 
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error, root_mean_squared_error
+from sklearn.metrics import mean_squared_error
 
 import torch
 import torch.nn as nn
@@ -20,6 +20,10 @@ from dataset import TimeSeriesDataset, AlignCollate
 from modules import Model, Agent, LSTM_Model
 from preprocessing import Feature_Extractor, data_preprocessing
 from utils import Config, Averager, sliding_window_training
+
+def root_mean_squared_error(y_actual,y_predicted):
+   return mean_squared_error(y_actual, y_predicted, squared=False)
+
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -219,10 +223,14 @@ def main(opt):
     y_true, y_pred = Evaluation(forecast_model, val_loader)
     gt = y_scaler.inverse_transform(y_true)
     prd = y_scaler.inverse_transform(y_pred)
-
+    
     rmse = root_mean_squared_error(gt, prd)
     mse = mean_squared_error(gt, prd)
     logging.info(f'Best model get score with MSE: {mse}, RMSE: {rmse}')
+    with open(f'checkpoint/{opt.name}_LSTM_xscaler.pkl', 'wb') as fopen:
+        pickle.dump(x_scaler, fopen)
+    with open(f'checkpoint/{opt.name}_LSTM_yscaler.pkl', 'wb') as fopen:
+        pickle.dump(y_scaler, fopen)    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

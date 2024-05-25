@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-
 import numpy as np
 import pickle
 import json
@@ -9,37 +8,43 @@ from datetime import datetime
 from pymongo import MongoClient
 import config
 from bson import json_util
-
+from preprocessing import Feature_Extractor, data_preprocessing
 from modules import Agent,Model
+from LSTMPredict import LSTMPredict
+from modules import LSTM_Model
+import torch
 
 app = Flask(__name__)
+
 
 client = MongoClient(config.MONGO_URI) # your connection string
 db = client["StockDB"]
 trading_collection = db["Trading"]
 stock_collection = db["Stock"]
 
-with open('model.pkl', 'rb') as fopen:
+with open('checkpoint/SINA_model.pkl', 'rb') as fopen:
     model = pickle.load(fopen)
-
-df = pd.read_csv('TSLA.csv')
+device = "cuda" if torch.cuda.is_available() else "cpu"
+df = pd.read_csv('SINA.csv')
+df = df[['Close']]  
+df = data_preprocessing(df, Feature_Extractor)
 real_trend = df['Close'].tolist()
-parameters = [df['Close'].tolist(), df['Volume'].tolist()]
-minmax = MinMaxScaler(feature_range = (100, 200)).fit(np.array(parameters).T)
+parameters = [df[cl].tolist() for cl in df.columns]
+minmax = pickle.load(open('checkpoint/SINA_scaler.pkl', 'rb'))
 scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
 initial_money = np.max(parameters[0]) * 2
-
+skip = 1
 agent = Agent(model = model,
               timeseries = scaled_parameters,
               skip = skip,
               initial_money = initial_money,
               real_trend = real_trend,
-              minmax = minmax)
+              minmax = minmax,
+              window_size= 10)
 
 @app.route('/', methods = ['GET'])
 def hello():
     return jsonify({'status': 'OK'})
-
 @app.route('/reset_agent', methods = ['POST'])
 def reset_agent():
     data = request.json
@@ -84,36 +89,45 @@ def trade():
     result = agent.trade([data.get('close', 0), data.get('volume', 0)])
     return jsonify(result)
 
-
+@app.route('/LSTMPredict',methods = ['GET'])
+def LSTM_Predict():
+    # data = request.json
+    # symbol = data.get('Symbol')
+    symbol = 'SINA'
+    data = pd.read_csv('SINA.csv')
+    model = LSTM_Model(input_size = 20,
+                                output_size = 1)
+    model.to(device)
+    model.load_state_dict(torch.load(f"checkpoint/{symbol}_forecast_model.pt"))
+    x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_xscaler.pkl", 'rb'))
+    y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_yscaler.pkl", 'rb'))
+    result = LSTMPredict(data,x_scaler,y_scaler,model)
+    print(result)
+    return jsonify(result.to_json())
 @app.route('/trade_range', methods=['POST'])
-
-"""
-request:
-- ma_co_phieu
-- ngay_bat_dau
-- ngay_ket_thuc
-- ...
-"""
 def trade_range():
     data = request.json
     from_date = data.get('from_date')
     to_date = data.get('to_date')
-
+    df = pd.read_csv('SINA.csv')
     df['Date'] = pd.to_datetime(df['Date'])
 
+    # with open(f'checkpoint/{data.get("Symbol")}_model.pkl', 'rb') as fopen:
+    #     model = pickle.load(fopen)
     from_date = pd.to_datetime(from_date)
     to_date = pd.to_datetime(to_date)
 
+    df = df[['Date', 'Close']]
     #Preprocess Dataframe
     df = data_preprocessing(df, Feature_Extractor)
 
-    selected_data = df.loc[(df['Date'] >= from_date) & (df['Date'] <= to_date), ['Date','Close']]
-
+    selected_data = df.loc[(df['Date'] >= from_date) & (df['Date'] <= to_date),:]
+    print(selected_data.columns)
     if selected_data.empty:
         return jsonify({'message': 'No data available for the selected period.'}), 400
 
     data_list = selected_data.values.tolist()
-
+    
     trade_results = []
     for row in data_list:
         #ensure first column is Date

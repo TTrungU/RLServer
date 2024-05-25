@@ -2,10 +2,9 @@ import numpy as np
 import time
 import math
 from datetime import timedelta
-
 import torch
 import torch.nn as nn
-
+from datetime import datetime
 from utils import softmax, get_state
 
 
@@ -128,7 +127,7 @@ class Agent:
         self._inventory = []
 
     def trade(self, data, date = None):
-
+        window_size = 10
         scaled_data = self.minmax.transform([data])[0]
         real_close = data[0]
         close = scaled_data[0]
