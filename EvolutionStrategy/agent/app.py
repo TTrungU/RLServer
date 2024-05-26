@@ -22,25 +22,25 @@ db = client["StockDB"]
 trading_collection = db["Trading"]
 stock_collection = db["Stock"]
 
-with open('checkpoint/SINA_model.pkl', 'rb') as fopen:
-    model = pickle.load(fopen)
-device = "cuda" if torch.cuda.is_available() else "cpu"
-df = pd.read_csv('SINA.csv')
-df = df[['Close']]  
-df = data_preprocessing(df, Feature_Extractor)
-real_trend = df['Close'].tolist()
-parameters = [df[cl].tolist() for cl in df.columns]
-minmax = pickle.load(open('checkpoint/SINA_scaler.pkl', 'rb'))
-scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
-initial_money = np.max(parameters[0]) * 2
-skip = 1
-agent = Agent(model = model,
-              timeseries = scaled_parameters,
-              skip = skip,
-              initial_money = initial_money,
-              real_trend = real_trend,
-              minmax = minmax,
-              window_size= 10)
+# with open('checkpoint/SINA_model.pkl', 'rb') as fopen:
+#     model = pickle.load(fopen)
+# device = "cuda" if torch.cuda.is_available() else "cpu"
+# df = pd.read_csv('SINA.csv')
+# df = df[['Close']]  
+# df = data_preprocessing(df, Feature_Extractor)
+# real_trend = df['Close'].tolist()
+# parameters = [df[cl].tolist() for cl in df.columns]
+# minmax = pickle.load(open('checkpoint/SINA_scaler.pkl', 'rb'))
+# scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
+# initial_money = np.max(parameters[0]) * 2
+# skip = 1
+# agent = Agent(model = model,
+#               timeseries = scaled_parameters,
+#               skip = skip,
+#               initial_money = initial_money,
+#               real_trend = real_trend,
+#               minmax = minmax,
+#               window_size= 10)
 
 @app.route('/', methods = ['GET'])
 def hello():
@@ -109,11 +109,29 @@ def trade_range():
     data = request.json
     from_date = data.get('from_date')
     to_date = data.get('to_date')
-    df = pd.read_csv('SINA.csv')
+    symbol = data.get('symbol')
+    money = data.get('init_money')
+    df = pd.read_csv(f"DataTraining/{symbol}.csv")
+    df_init = df
     df['Date'] = pd.to_datetime(df['Date'])
-
-    # with open(f'checkpoint/{data.get("Symbol")}_model.pkl', 'rb') as fopen:
-    #     model = pickle.load(fopen)
+    with open('checkpoint/SINA_model.pkl', 'rb') as fopen:
+        model = pickle.load(fopen)
+    df_init = df_init[['Close']]  
+    df_init = data_preprocessing(df_init, Feature_Extractor)
+    real_trend = df_init['Close'].tolist()
+    parameters = [df_init[cl].tolist() for cl in df_init.columns]
+    minmax = pickle.load(open(f"checkpoint/SINA_scaler.pkl", 'rb'))
+    scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
+    # initial_money = np.max(parameters[0]) * 2
+    skip = 1
+    agent = Agent(model = model,
+              timeseries = scaled_parameters,
+              skip = skip,
+              initial_money = money,
+              real_trend = real_trend,
+              minmax = minmax,
+              window_size= 10)
+    
     from_date = pd.to_datetime(from_date)
     to_date = pd.to_datetime(to_date)
 
