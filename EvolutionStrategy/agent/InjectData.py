@@ -50,6 +50,8 @@ for file in csv_files:
     # Sort the DataFrame by the 'Date' column
     df_sorted = df_cleaned.sort_values(by='Date')
 
+        # Save the cleaned and sorted DataFrame back to CSV
+    df_sorted.to_csv(file_path, index=False)
     
     # Check if the symbol already exists in the StockInfor table
     cursor.execute("SELECT id FROM stockinfors WHERE Symbol = %s", (symbol,))
@@ -69,10 +71,18 @@ for file in csv_files:
     df_sorted = df_sorted[['Date', 'Close', 'Open', 'High', 'Low', 'StockInforId']]    
 
     
-    # Insert the data into the StockData table
+    # Check for existing dates in the StockData table for the current StockInforId
+    cursor.execute("SELECT Date FROM stockdatas WHERE StockInforId = %s", (stock_infor_id,))
+    existing_dates = set(row[0] for row in cursor.fetchall())
+
+    
+    # Filter out rows that already exist in the database
+    new_data = df_sorted[~df_sorted['Date'].isin(existing_dates)]
+    
+   # Insert the new data into the StockData table
     try:
         # Iterate over rows to insert data one by one
-        for index, row in df_sorted.iterrows():
+        for index, row in new_data.iterrows():
             cursor.execute("INSERT INTO stockdatas (Date, Close, Open, High, Low, StockInforId) VALUES (%s, %s, %s, %s, %s, %s)",
                            (row['Date'], row['Close'], row['Open'], row['High'], row['Low'], row['StockInforId']))
         conn.commit()
@@ -84,7 +94,6 @@ for file in csv_files:
 cursor.close()
 conn.close()
     
-    # Save the cleaned and sorted DataFrame back to CSV
-df_sorted.to_csv(file_path, index=False)
+
 
 print(f"Processed file: {file_path}")
