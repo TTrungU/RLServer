@@ -10,8 +10,8 @@ import config
 from bson import json_util
 from preprocessing import Feature_Extractor, data_preprocessing
 from modules import Agent,Model
-from LSTMPredict import LSTMPredict
-from modules import LSTM_Model
+from LSTMPredict import LSTMPredict, GAN_Predict
+from modules import LSTM_Model, VAE, Generator
 import torch
 
 app = Flask(__name__)
@@ -22,25 +22,6 @@ db = client["StockDB"]
 trading_collection = db["Trading"]
 stock_collection = db["Stock"]
 
-# with open('checkpoint/SINA_model.pkl', 'rb') as fopen:
-#     model = pickle.load(fopen)
-# device = "cuda" if torch.cuda.is_available() else "cpu"
-# df = pd.read_csv('SINA.csv')
-# df = df[['Close']]  
-# df = data_preprocessing(df, Feature_Extractor)
-# real_trend = df['Close'].tolist()
-# parameters = [df[cl].tolist() for cl in df.columns]
-# minmax = pickle.load(open('checkpoint/SINA_scaler.pkl', 'rb'))
-# scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
-# initial_money = np.max(parameters[0]) * 2
-# skip = 1
-# agent = Agent(model = model,
-#               timeseries = scaled_parameters,
-#               skip = skip,
-#               initial_money = initial_money,
-#               real_trend = real_trend,
-#               minmax = minmax,
-#               window_size= 10)
 
 @app.route('/', methods = ['GET'])
 def hello():
@@ -60,7 +41,7 @@ def reset_agent():
                   initial_money = initial_money,
                   real_trend = real_trend,
                   minmax = minmax)
-    
+
     return jsonify(True)
 
 @app.route('/inventory', methods = ['GET'])
@@ -104,6 +85,26 @@ def LSTM_Predict():
     result = LSTMPredict(data,x_scaler,y_scaler,model)
     print(result)
     return jsonify(result.to_json())
+
+@app.route('/LSTMPredict',methods = ['GET'])
+def GAN_Predict():
+    # data = request.json
+    # symbol = data.get('Symbol')
+    symbol = 'SINA'
+    data = pd.read_csv('SINA.csv')
+
+    model_VAE = VAE([20, 256, 256, 256, 16], 16).to(device)
+    modelG = Generator(20).to(device)
+
+    model_VAE.load_state_dict(torch.load(f"checkpoint/{symbol}_VAE.pt"))
+    modelG.load_state_dict(torch.load(f"checkpoint/{symbol}_modelG.pt"))
+    x_scaler = pickle.load(open(f"checkpoint/{symbol}_GAN_xscaler.pkl", 'rb'))
+    y_scaler = pickle.load(open(f"checkpoint/{symbol}_GAN_yscaler.pkl", 'rb'))
+
+    result = GAN_Predict(data, x_scaler, y_scaler, model_VAE, modelG)
+    print(result)
+    return jsonify(result.to_json())
+
 @app.route('/trade_range', methods=['POST'])
 def trade_range():
     data = request.json
