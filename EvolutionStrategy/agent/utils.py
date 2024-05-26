@@ -39,6 +39,22 @@ def sliding_window_training(x, y, window):
     y_ = torch.from_numpy(np.array(y_)).float()
     return x_, y_
 
+def sliding_window_GAN_training(x, y, window):
+    x_ = []
+    y_ = []
+    y_gan = []
+    for i in range(window, x.shape[0]):
+        tmp_x = x[i - window: i, :]
+        tmp_y = y[i]
+        tmp_y_gan = y[i - window: i + 1]
+        x_.append(tmp_x)
+        y_.append(tmp_y)
+        y_gan.append(tmp_y_gan)
+    x_ = torch.from_numpy(np.array(x_)).float()
+    y_ = torch.from_numpy(np.array(y_)).float()
+    y_gan = torch.from_numpy(np.array(y_gan)).float()
+    return x_, y_, y_gan
+
 class Averager(object):
     """Compute average for torch.Tensor, used for loss average."""
 
