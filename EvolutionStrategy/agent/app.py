@@ -10,7 +10,7 @@ import config
 from bson import json_util
 from preprocessing import Feature_Extractor, data_preprocessing
 from modules import Agent,Model
-from LSTMPredict import LSTMPredict, GAN_Predict
+from LSTMPredict import LSTMPredict, GANPredict
 from modules import LSTM_Model, VAE, Generator
 import torch
 
@@ -22,7 +22,7 @@ db = client["StockDB"]
 trading_collection = db["Trading"]
 stock_collection = db["Stock"]
 
-
+device = "cuda" if torch.cuda.is_available() else "cpu"
 @app.route('/', methods = ['GET'])
 def hello():
     return jsonify({'status': 'OK'})
@@ -86,22 +86,22 @@ def LSTM_Predict():
     print(result)
     return jsonify(result.to_json())
 
-@app.route('/LSTMPredict',methods = ['GET'])
+@app.route('/GAN_Predict',methods = ['GET'])
 def GAN_Predict():
     # data = request.json
     # symbol = data.get('Symbol')
-    symbol = 'SINA'
-    data = pd.read_csv('SINA.csv')
-
+    symbol = 'ACB'
+    data = pd.read_csv('DataTraining/ACB.csv')
+    
     model_VAE = VAE([20, 256, 256, 256, 16], 16).to(device)
-    modelG = Generator(20).to(device)
+    modelG = Generator(36).to(device)
 
     model_VAE.load_state_dict(torch.load(f"checkpoint/{symbol}_VAE.pt"))
     modelG.load_state_dict(torch.load(f"checkpoint/{symbol}_modelG.pt"))
     x_scaler = pickle.load(open(f"checkpoint/{symbol}_GAN_xscaler.pkl", 'rb'))
     y_scaler = pickle.load(open(f"checkpoint/{symbol}_GAN_yscaler.pkl", 'rb'))
 
-    result = GAN_Predict(data, x_scaler, y_scaler, model_VAE, modelG)
+    result = GANPredict(data, x_scaler, y_scaler, model_VAE, modelG)
     print(result)
     return jsonify(result.to_json())
 

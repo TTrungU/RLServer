@@ -41,8 +41,7 @@ def LSTMPredict(data,x_scaler,y_scaler,model):
     df_feedback['High'][update_index] = update_row['High']
     df_feedback['Low'][update_index] = update_row['Low']
     df_feedback['Close'][update_index] = update_row['Close']
-    df_feedback['Adj Close'][update_index] = update_row['Adj Close']
-    df_feedback['Volume'][update_index] = update_row['Volume']
+
 
 
 
@@ -103,8 +102,7 @@ def GANPredict(data, x_scaler, y_scaler, model_VAE, modelG):
     df_feedback['High'][update_index] = update_row['High']
     df_feedback['Low'][update_index] = update_row['Low']
     df_feedback['Close'][update_index] = update_row['Close']
-    df_feedback['Adj Close'][update_index] = update_row['Adj Close']
-    df_feedback['Volume'][update_index] = update_row['Volume']
+
 
 
 
@@ -119,7 +117,7 @@ def GANPredict(data, x_scaler, y_scaler, model_VAE, modelG):
     future_predicted = list()
     data_tmp = date_record[['Close']][-60:]
     model_VAE.eval()
-    mdedelG.eval()
+    modelG.eval()
 
     current_index = len(data_record)-1
 
@@ -137,7 +135,7 @@ def GANPredict(data, x_scaler, y_scaler, model_VAE, modelG):
 
             x_future = x_scaler.transform(data_tmp_preprocessed.values)
 
-            _, VAE_x_future, x_future_mu, x_future_var = modelVAE(torch.from_numpy(x_future).float().to(device))
+            _, VAE_x_future, x_future_mu, x_future_var = model_VAE(torch.from_numpy(x_future).float().to(device))
             x_future = np.concatenate((x_future, VAE_x_future.cpu().detach().numpy()), axis = 1)
 
             x_future = slide_window(x_future, window_size  = 10)[-1]
