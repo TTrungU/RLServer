@@ -2,7 +2,7 @@
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 # More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
 
-name: Build and deploy Python app to Azure Web App - RlTrading
+name: Build and deploy Python app to Azure Web App - RLTrading
 
 on:
   push:
@@ -65,14 +65,14 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F6D415559A84406AB5B5A41CAE07E3CE }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_244F06FCDEF74512AD55245FE7EEB2C7 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_608FAE97566E48EF84BAF3D6F0BE884E }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_7756B37683D74DB2BB2500C070D982B6 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_8A08F201019D4124982EA849A94AFB6A }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_407369406B774B0A8CAB3903BC9115F0 }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v2
         id: deploy-to-webapp
         with:
-          app-name: 'RlTrading'
+          app-name: 'RLTrading'
           slot-name: 'Production'
           
