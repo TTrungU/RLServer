@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/d7c95e8a-3b2b-45d7-9e7f-5e7e755911a0/resourceGroups/rg1/providers/Microsoft.Web/sites/RlTrading",
+    "appService.deploySubpath": "."
+}
