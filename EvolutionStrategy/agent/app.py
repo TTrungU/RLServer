@@ -22,7 +22,7 @@ app = Flask(__name__)
 client = MongoClient(config.MONGO_URI) # your connection string
 db = client["StockDB"]
 trading_collection = db["Trading"]
-stock_collection = db["Stock"]
+stock_collection = db["StockData"]
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 @app.route('/', methods = ['GET'])
@@ -115,7 +115,16 @@ def trade_range():
     symbol = data.get('symbol')
     money = data.get('init_money')
     strategy = data.get('strategy')
-    df = pd.read_csv(f"DataTraining/{symbol}.csv")
+
+    document = stock_collection.find_one({'Stockinfor.Symbol': symbol}, {'stockData.Date': 1, 'stockData.Close': 1, 'stockData.High': 1, 'stockData.Low': 1, '_id': 0})
+
+# Extracting stockData from the document
+    if document:
+        stock_data = document.get('stockData', [])
+        df = pd.DataFrame(stock_data)
+        print("DataFrame from MongoDB:", df)
+    else:
+        return jsonify({"message": "Not Found"}),404
     df_init = df
     df['Date'] = pd.to_datetime(df['Date'])
     df_init = df_init[['Close']]  
