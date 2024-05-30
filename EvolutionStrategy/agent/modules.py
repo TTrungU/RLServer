@@ -31,7 +31,7 @@ class Deep_Evolution_Strategy:
     def get_weights(self):
         return self.weights
 
-    def train(self, epoch = 100, print_every = 1):
+    def train(self, epoch = 200, print_every = 1):
         lasttime = time.time()
         for i in range(epoch):
             population = []
@@ -168,6 +168,10 @@ class Agent:
             scaled_bought_price = self.minmax.inverse_transform(
                 [[bought_price] * self.num_features]
             )[0, 0]
+
+            total_units = len(self._inventory)
+            total = total_units * real_close+ self._capital 
+
             try:
                 invest = (
                     (real_close - scaled_bought_price) / scaled_bought_price
@@ -180,6 +184,7 @@ class Agent:
                 'gain': real_close - scaled_bought_price,
                 'balance': self._capital,
                 'action': 'sell',
+                'total': total,
                 'timestamp': str(datetime.now()),
                 'date': date,
             }
