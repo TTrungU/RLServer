@@ -2,7 +2,6 @@ absl-py==2.1.0
 asttokens==2.4.0
 astunparse==1.6.3
 backcall==0.2.0
-Bottleneck @ file:///C:/ci_311/bottleneck_1676500016583/work
 cachetools==5.3.3
 charset-normalizer==3.3.2
 click @ file:///C:/b/abs_f9ihnt72pu/croot/click_1698129847492/work
