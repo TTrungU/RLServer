@@ -13,6 +13,8 @@ from modules import Agent,Model
 from LSTMPredict import LSTMPredict, GANPredict
 from modules import LSTM_Model, VAE, Generator
 import torch
+from DCAStrategy import DCAAgent
+from LSStrategy import LSSAgent
 
 app = Flask(__name__)
 
@@ -112,26 +114,49 @@ def trade_range():
     to_date = data.get('to_date')
     symbol = data.get('symbol')
     money = data.get('init_money')
+    strategy = data.get('strategy')
     df = pd.read_csv(f"DataTraining/{symbol}.csv")
     df_init = df
     df['Date'] = pd.to_datetime(df['Date'])
-    with open('checkpoint/SINA_model.pkl', 'rb') as fopen:
-        model = pickle.load(fopen)
     df_init = df_init[['Close']]  
     df_init = data_preprocessing(df_init, Feature_Extractor)
     real_trend = df_init['Close'].tolist()
     parameters = [df_init[cl].tolist() for cl in df_init.columns]
-    minmax = pickle.load(open(f"checkpoint/SINA_scaler.pkl", 'rb'))
+    minmax = pickle.load(open(f"checkpoint/{symbol}_scaler.pkl", 'rb'))
     scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
     # initial_money = np.max(parameters[0]) * 2
     skip = 1
-    agent = Agent(model = model,
-              timeseries = scaled_parameters,
-              skip = skip,
-              initial_money = money,
-              real_trend = real_trend,
-              minmax = minmax,
-              window_size= 10)
+    if(strategy == 'DCA'):
+        with open(f"checkpoint/{symbol}_DCAmodel.pkl", 'rb') as fopen:
+            model = pickle.load(fopen)
+        agent = DCAAgent(model = model,
+                timeseries = scaled_parameters,
+                skip = skip,
+                initial_money = money,
+                real_trend = real_trend,
+                minmax = minmax,
+                window_size= 10)
+        print(strategy)
+    elif(strategy == 'LSS'):
+        with open(f"checkpoint/{symbol}_LSSmodel.pkl", 'rb') as fopen:
+            model = pickle.load(fopen)
+        agent = LSSAgent(model = model,
+                timeseries = scaled_parameters,
+                skip = skip,
+                initial_money = money,
+                real_trend = real_trend,
+                minmax = minmax,
+                window_size= 10)    
+    else:
+        with open(f"checkpoint/{symbol}_model.pkl", 'rb') as fopen:
+            model = pickle.load(fopen)
+        agent = Agent(model = model,
+                timeseries = scaled_parameters,
+                skip = skip,
+                initial_money = money,
+                real_trend = real_trend,
+                minmax = minmax,
+                window_size= 10)
     
     from_date = pd.to_datetime(from_date)
     to_date = pd.to_datetime(to_date)
