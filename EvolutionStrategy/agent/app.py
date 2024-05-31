@@ -28,37 +28,37 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 @app.route('/', methods = ['GET'])
 def hello():
     return jsonify({'status': 'OK'})
-@app.route('/reset_agent', methods = ['POST'])
-def reset_agent():
-    data = request.json
-    df = pd.read_csv('TWTR.csv')
-    real_trend = df['Close'].tolist()
-    parameters = [df['Close'].tolist(), df['Volume'].tolist()]
-    minmax = MinMaxScaler(feature_range = (100, 200)).fit(np.array(parameters).T)
-    scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
-    initial_money = data.money
+# @app.route('/reset_agent', methods = ['POST'])
+# def reset_agent():
+#     data = request.json
+#     df = pd.read_csv('TWTR.csv')
+#     real_trend = df['Close'].tolist()
+#     parameters = [df['Close'].tolist(), df['Volume'].tolist()]
+#     minmax = MinMaxScaler(feature_range = (100, 200)).fit(np.array(parameters).T)
+#     scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
+#     initial_money = data.money
 
-    agent.change_data(timeseries = scaled_parameters,
-                  skip = skip,
-                  initial_money = initial_money,
-                  real_trend = real_trend,
-                  minmax = minmax)
+#     agent.change_data(timeseries = scaled_parameters,
+#                   skip = skip,
+#                   initial_money = initial_money,
+#                   real_trend = real_trend,
+#                   minmax = minmax)
 
-    return jsonify(True)
+#     return jsonify(True)
 
-@app.route('/inventory', methods = ['GET'])
-def inventory():
-    return jsonify(agent._inventory)
-
-
-@app.route('/queue', methods = ['GET'])
-def queue():
-    return jsonify(agent._queue)
+# @app.route('/inventory', methods = ['GET'])
+# def inventory():
+#     return jsonify(agent._inventory)
 
 
-@app.route('/balance', methods = ['GET'])
-def balance():
-    return jsonify(agent._capital)
+# @app.route('/queue', methods = ['GET'])
+# def queue():
+#     return jsonify(agent._queue)
+
+
+# @app.route('/balance', methods = ['GET'])
+# def balance():
+#     return jsonify(agent._capital)
 
 
 # @app.route('/trade', methods = ['GET'])
@@ -66,11 +66,11 @@ def balance():
 #     data = json.loads(request.args.get('data'))
 #     return jsonify(agent.trade(data))
 
-@app.route('/trade', methods=['POST'])
-def trade():
-    data = request.json
-    result = agent.trade([data.get('close', 0), data.get('volume', 0)])
-    return jsonify(result)
+# @app.route('/trade', methods=['POST'])
+# def trade():
+#     data = request.json
+#     result = agent.trade([data.get('close', 0), data.get('volume', 0)])
+#     return jsonify(result)
 
 @app.route('/LSTMPredict',methods = ['GET'])
 def LSTM_Predict():
@@ -217,20 +217,20 @@ def trade_history():
     return jsonify(json_util.dumps(document))
 
 
-@app.route('/all_trade_history',methods = ['GET'])
-def all_trade_history():
-    all_documents = list(trading_collection.find())
+# @app.route('/all_trade_history',methods = ['GET'])
+# def all_trade_history():
+#     all_documents = list(trading_collection.find())
    
-    for doc in all_documents:
-        doc['_id'] = str(doc['_id'])
-    return jsonify(json_util.dumps(all_documents))
+#     for doc in all_documents:
+#         doc['_id'] = str(doc['_id'])
+#     return jsonify(json_util.dumps(all_documents))
 
-@app.route('/reset', methods = ['GET'])
-def reset():
-    money = json.loads(request.args.get('money'))
-    agent.reset_capital(money)
-    return jsonify(True)
+# @app.route('/reset', methods = ['GET'])
+# def reset():
+#     money = json.loads(request.args.get('money'))
+#     agent.reset_capital(money)
+#     return jsonify(True)
 
 
 if __name__ == '__main__':
-    app.run(host = '0.0.0.0', port = 8005)
+    app.run()
