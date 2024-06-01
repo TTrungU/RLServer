@@ -137,10 +137,11 @@ class Agent:
         if len(self._queue) < window_size:
             return {
                 'status': 'data not enough to trade',
-                'action': 'fail',
+                'action': 0,
+                'close': real_close,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
-                'date': date,
+                'date': str(date),
             }
         state = self.get_state(
             window_size - 1,
@@ -156,10 +157,11 @@ class Agent:
             self._capital -= real_close
             return {
                 'status': 'buy 1 unit, cost %f' % (real_close),
-                'action': 'buy',
+                'action': 1,
                 'balance': self._capital,
+                'close': real_close,
                 'timestamp': str(datetime.now()),
-                'date': date,
+                'date': str(date),
             }
         elif action == 2 and len(self._inventory):
             bought_price = self._inventory.pop(0)
@@ -183,15 +185,18 @@ class Agent:
                 'investment': invest,
                 'gain': real_close - scaled_bought_price,
                 'balance': self._capital,
-                'action': 'sell',
+                'action': 2,
+                'close': real_close,
                 'total': total,
                 'timestamp': str(datetime.now()),
-                'date': date,
+                'date': str(date),
             }
         else:
             return {
                 'status': 'do nothing',
-                'action': 'nothing',
+                'date':str(date),
+                'close':real_close,
+                'action': 0,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
             }

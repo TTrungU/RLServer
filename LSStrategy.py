@@ -62,10 +62,11 @@ class LSSAgent:
         if len(self._queue) < window_size:
             return {
                 'status': 'data not enough to trade',
-                'action': 'fail',
+                'action': 0,
+                'close':real_close,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
-                'date': date,
+                'date': str(date)
             }
         state = self.get_state(
             window_size - 1,
@@ -94,10 +95,11 @@ class LSSAgent:
                     
                     return {
                         'status': f'buy {units_to_buy} units, cost {real_close * real_units_to_buy:.2f}',
-                        'action': 'buy',
+                        'action': 1,
                         'balance': self._capital,
                         'timestamp': str(datetime.now()),
-                        'date': date,
+                        'close':real_close,
+                        'date': str(date),
                     }
         elif action == 2 and len(self._inventory):
             if(len(self._inventory)>1):
@@ -128,18 +130,22 @@ class LSSAgent:
             return {
                 'status': 'sell %d units, price %f' % (num_units_to_sell,real_close*num_units_to_sell),
                 'average_investment_return': average_investment_return,
+                'investment': total_investment_return,
                 'total_gain': total_gain,
                 'balance': self._capital,
-                'action': 'sell',
+                'action': 2,
+                'close':real_close,
                 'total':total,
                 'timestamp': str(datetime.now()),
-                'date': date,
+                'date': str(date),
             }
         else:
             return {
                 'status': 'do nothing',
-                'action': 'nothing',
+                'action': 0,
+                'close':real_close,
                 'balance': self._capital,
+                'date': str(date),
                 'timestamp': str(datetime.now()),
             }
 

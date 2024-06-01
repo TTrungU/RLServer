@@ -62,10 +62,11 @@ class DCAAgent:
         if len(self._queue) < window_size:
             return {
                 'status': 'data not enough to trade',
-                'action': 'fail',
+                'action': 0,
+                'close': real_close,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
-                'date': date,
+                'date': str(date),
             }
         state = self.get_state(
             window_size - 1,
@@ -81,10 +82,11 @@ class DCAAgent:
             self._capital -= real_close
             return {
                 'status': 'buy 1 unit, cost %f' % (real_close),
-                'action': 'buy',
+                'action': 1,
+                'close': real_close,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
-                'date': date,
+                'date': str(date),
             }
         elif action == 2 and len(self._inventory):
             total_investment_return = 0
@@ -112,18 +114,21 @@ class DCAAgent:
             average_investment_return = total_investment_return / total_units if total_units > 0 else 0
             return {
                 'status': 'sold %d units, price %f' % (total_units, real_close),
-                'total_investment': total_investment_return,
+                'investment': total_investment_return,
                 'average_investment': average_investment_return,
                 'total_gain': total_gain,
                 'balance': self._capital,
-                'action': 'sell',
+                'action': 2,
+                'close':real_close,
                 'timestamp': str(datetime.now()),
-                'date': date,
+                'date': str(date),
             }
         else:
             return {
                 'status': 'do nothing',
-                'action': 'nothing',
+                'action': 0,
+                'close':real_close,
+                'date': str(date),
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
             }
