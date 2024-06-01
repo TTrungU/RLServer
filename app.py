@@ -227,10 +227,11 @@ def trade_history():
 
 # @app.route('/reset', methods = ['GET'])
 # def reset():
+
 #     money = json.loads(request.args.get('money'))
 #     agent.reset_capital(money)
 #     return jsonify(True)
-
+print("hello")
 
 if __name__ == '__main__':
     app.run(host = '0.0.0.0', port = 8000)
