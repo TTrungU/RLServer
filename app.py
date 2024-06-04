@@ -74,10 +74,8 @@ def hello():
 
 @app.route('/LSTMPredict',methods = ['GET'])
 def LSTM_Predict():
-    # data = request.json
-    # symbol = data.get('Symbol')
-    symbol = 'SINA'
-    data = pd.read_csv('SINA.csv')
+    symbol = request.args.get('Symbol')
+    data = pd.read_csv(f'DataTraining/{symbol}.csv')
     model = LSTM_Model(input_size = 20,
                                 output_size = 1)
     model.to(device)
@@ -85,15 +83,14 @@ def LSTM_Predict():
     x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_xscaler.pkl", 'rb'))
     y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_yscaler.pkl", 'rb'))
     result = LSTMPredict(data,x_scaler,y_scaler,model)
-    print(result)
-    return jsonify(result.to_json())
+    result['Date'] = result['Date'].dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
+    result = result.tail(29)
+    return jsonify(result.to_dict(orient='records'))
 
-@app.route('/GAN_Predict',methods = ['GET'])
+@app.route('/GANPredict',methods = ['GET'])
 def GAN_Predict():
-    # data = request.json
-    # symbol = data.get('Symbol')
-    symbol = 'ACB'
-    data = pd.read_csv('DataTraining/ACB.csv')
+    symbol = request.args.get('Symbol')
+    data = pd.read_csv(f'DataTraining/{symbol}.csv')
     
     model_VAE = VAE([20, 256, 256, 256, 16], 16).to(device)
     modelG = Generator(36).to(device)
@@ -104,8 +101,9 @@ def GAN_Predict():
     y_scaler = pickle.load(open(f"checkpoint/{symbol}_GAN_yscaler.pkl", 'rb'))
 
     result = GANPredict(data, x_scaler, y_scaler, model_VAE, modelG)
-    print(result)
-    return jsonify(result.to_json())
+    result = result.tail(29)
+    result['Date'] = result['Date'].dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
+    return jsonify(result.to_dict(orient='records'))
 
 @app.route('/trade_range', methods=['POST'])
 def trade_range():
