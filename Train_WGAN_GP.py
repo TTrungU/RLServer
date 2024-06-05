@@ -66,7 +66,7 @@ def main(opt):
 
     logging.info('Start Training VAE.')
 
-    num_epochs = 10
+    num_epochs = 400
 
     optimizer = torch.optim.Adam(model.parameters(), lr = 0.00004)
 
@@ -117,7 +117,7 @@ def main(opt):
     optimizerD = torch.optim.Adam(modelD.parameters(), lr = 0.000115, \
                                   betas = (0.0, 0.9), weight_decay = 1e-3)
 
-    num_epochs = 10
+    num_epochs = 200
     critic_iterations = 5
     weight_clip = 0.01
     histG = np.zeros(num_epochs)

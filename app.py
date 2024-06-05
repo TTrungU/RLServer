@@ -4,13 +4,13 @@ import pickle
 import json
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
-from datetime import datetime
+from datetime import timedelta
 from pymongo import MongoClient
 import config
 from bson import json_util
 from preprocessing import Feature_Extractor, data_preprocessing
 from modules import Agent,Model
-from LSTMPredict import LSTMPredict, GANPredict
+from LSTMPredict import LSTMPredict, GANPredict,slide_window
 from modules import LSTM_Model, VAE, Generator
 import torch
 from DCAStrategy import DCAAgent
@@ -69,7 +69,7 @@ def hello():
 # @app.route('/trade', methods=['POST'])
 # def trade():
 #     data = request.json
-#     result = agent.trade([data.get('close', 0), data.get('volume', 0)])
+#     result = agent.trade([data.get('close'))
 #     return jsonify(result)
 
 @app.route('/LSTMPredict',methods = ['GET'])
@@ -195,6 +195,87 @@ def trade_range():
     return jsonify(trade_results)
 
 
+# @app.route('/LSTMTradingPredict',methods = ['GET'])
+# def LSTMTradingPredict():
+    symbol = request.args.get('Symbol')
+    data = pd.read_csv(f'DataTraining/{symbol}.csv')
+
+    df_feedback = data.copy().reset_index(drop=True)
+    df_feedback['Date'] = pd.to_datetime(df_feedback['Date'])
+    df_feedback['forecast'] = np.nan
+    df_feedback['signal'] = np.nan
+
+    LSTMmodel = LSTM_Model(input_size = 20,
+                                output_size = 1)
+    LSTMmodel.to(device)
+    LSTMmodel.load_state_dict(torch.load(f"checkpoint/{symbol}_forecast_model.pt"))
+    x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_xscaler.pkl", 'rb'))
+    y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_yscaler.pkl", 'rb'))
+    result = LSTMPredict(data,x_scaler,y_scaler,LSTMmodel)
+
+
+    result['Date'] = pd.to_datetime(result['Date'])
+    result = result[['Close']]  
+    result = data_preprocessing(result, Feature_Extractor)
+   
+    real_trend = result['Close'].tolist()
+    parameters = [result[cl].tolist() for cl in result.columns]
+    minmax = pickle.load(open(f"checkpoint/{symbol}_scaler.pkl", 'rb'))
+    scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
+    initial_money = np.max(parameters[0]) * 5
+    with open(f"checkpoint/{symbol}_model.pkl", 'rb') as fopen:
+            model = pickle.load(fopen)
+    agent = Agent(model = model,
+            timeseries = scaled_parameters,
+            skip = 1,
+            initial_money = initial_money,
+            real_trend = real_trend,
+            minmax = minmax,
+            window_size= 10)
+    window_size = 5
+    prev_window_data = np.array(scaled_parameters)[:,-window_size:].T
+    agent._queue = [prev_window_data[i] for i in range(window_size)]
+    states_sell = []
+    states_buy = []
+        
+    future_predicted = list()
+    data_tmp = data[['Close']][-60:]
+    LSTMmodel.eval()
+    date_record = df_feedback[~df_feedback['Close'].isna()]
+    current_date = date_record['Date'][len(date_record)-1]
+
+    current_index = len(date_record)-1
+    for i in range(60):
+        data_tmp_preprocessed = data_preprocessing(data_tmp, Feature_Extractor)
+        if i >0:
+            response = agent.trade(data_tmp_preprocessed.values[-1].tolist())
+            print(i-1, response)
+            if response['action'] == 2:
+                states_sell.append(i-1)
+                new_row.update({"signal" : "sell"})
+            elif response['action'] == 1:
+                states_buy.append(i-1)
+                new_row.update({"signal" : "buy"})
+            else:
+                new_row.update({"signal" : "nothing"})
+
+            current_index +=1
+            df_feedback.loc[current_index] = new_row
+        x_future = x_scaler.transform(data_tmp_preprocessed.values)
+        x_future = slide_window(x_future, window_size  = 10)[-1]
+        prediction = LSTMmodel(torch.from_numpy(x_future).unsqueeze(0).float().to(device))
+
+        prediction_inv = y_scaler.inverse_transform(prediction.cpu().detach().numpy())
+
+        data_tmp.loc[len(data_tmp)] = {"Close": prediction_inv[0][0]}
+        new_row = {"Date" : df_feedback['Date'][current_index] + timedelta(days=1),\
+                                            "forecast": prediction_inv[0][0]}
+
+        future_predicted.append(prediction_inv[0][0])
+
+    df_feedback['Date'] = df_feedback['Date'].dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
+    # result = result.tail(29)
+    return jsonify(df_feedback.to_dict(orient='records'))
 @app.route('/trade_history', methods = ['GET'])
 def trade_history():
     userId = request.args.get('UserId')
