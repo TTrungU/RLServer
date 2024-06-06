@@ -66,7 +66,7 @@ class LSSAgent:
                 'close':real_close,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
-                'date': str(date)
+                'date': date.strftime("%Y-%m-%d")
             }
         state = self.get_state(
             window_size - 1,
@@ -99,7 +99,7 @@ class LSSAgent:
                         'balance': self._capital,
                         'timestamp': str(datetime.now()),
                         'close':real_close,
-                        'date': str(date),
+                        'date': date.strftime("%Y-%m-%d"),
                     }
         elif action == 2 and len(self._inventory):
             if(len(self._inventory)>1):
@@ -137,7 +137,7 @@ class LSSAgent:
                 'close':real_close,
                 'total':total,
                 'timestamp': str(datetime.now()),
-                'date': str(date),
+                'date': date.strftime("%Y-%m-%d"),
             }
         else:
             return {
@@ -145,7 +145,7 @@ class LSSAgent:
                 'action': 0,
                 'close':real_close,
                 'balance': self._capital,
-                'date': str(date),
+                'date': date.strftime("%Y-%m-%d"),
                 'timestamp': str(datetime.now()),
             }
 

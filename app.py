@@ -15,7 +15,7 @@ from modules import LSTM_Model, VAE, Generator
 import torch
 from DCAStrategy import DCAAgent
 from LSStrategy import LSSAgent
-
+from AnomalyDetection import Detection
 app = Flask(__name__)
 
 
@@ -83,7 +83,8 @@ def LSTM_Predict():
     x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_xscaler.pkl", 'rb'))
     y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_yscaler.pkl", 'rb'))
     result = LSTMPredict(data,x_scaler,y_scaler,model)
-    result['Date'] = result['Date'].dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
+    result = Detection(result)
+    result['Date'] = result['Date'].dt.strftime("%Y-%m-%d")
     result = result.tail(29)
     return jsonify(result.to_dict(orient='records'))
 
@@ -101,8 +102,9 @@ def GAN_Predict():
     y_scaler = pickle.load(open(f"checkpoint/{symbol}_GAN_yscaler.pkl", 'rb'))
 
     result = GANPredict(data, x_scaler, y_scaler, model_VAE, modelG)
+    result = Detection(result)
+    result['Date'] = result['Date'].dt.strftime("%Y-%m-%d")
     result = result.tail(29)
-    result['Date'] = result['Date'].dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
     return jsonify(result.to_dict(orient='records'))
 
 @app.route('/trade_range', methods=['POST'])
@@ -129,11 +131,13 @@ def trade_range():
     df_init = data_preprocessing(df_init, Feature_Extractor)
     real_trend = df_init['Close'].tolist()
     parameters = [df_init[cl].tolist() for cl in df_init.columns]
-    minmax = pickle.load(open(f"checkpoint/{symbol}_scaler.pkl", 'rb'))
-    scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
+ 
+    
     # initial_money = np.max(parameters[0]) * 2
     skip = 1
     if(strategy == 'DCA'):
+        minmax = pickle.load(open(f"checkpoint/{symbol}_DCAscaler.pkl", 'rb'))
+        scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
         with open(f"checkpoint/{symbol}_DCAmodel.pkl", 'rb') as fopen:
             model = pickle.load(fopen)
         agent = DCAAgent(model = model,
@@ -145,6 +149,8 @@ def trade_range():
                 window_size= 10)
         print(strategy)
     elif(strategy == 'LSS'):
+        minmax = pickle.load(open(f"checkpoint/{symbol}_LSSscaler.pkl", 'rb'))
+        scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
         with open(f"checkpoint/{symbol}_LSSmodel.pkl", 'rb') as fopen:
             model = pickle.load(fopen)
         agent = LSSAgent(model = model,
@@ -155,6 +161,8 @@ def trade_range():
                 minmax = minmax,
                 window_size= 10)    
     else:
+        minmax = pickle.load(open(f"checkpoint/{symbol}_scaler.pkl", 'rb'))
+        scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
         with open(f"checkpoint/{symbol}_model.pkl", 'rb') as fopen:
             model = pickle.load(fopen)
         agent = Agent(model = model,
@@ -195,8 +203,8 @@ def trade_range():
     return jsonify(trade_results)
 
 
-# @app.route('/LSTMTradingPredict',methods = ['GET'])
-# def LSTMTradingPredict():
+@app.route('/LSTMTradingPredict',methods = ['GET'])
+def LSTMTradingPredict():
     symbol = request.args.get('Symbol')
     data = pd.read_csv(f'DataTraining/{symbol}.csv')
 
@@ -211,15 +219,15 @@ def trade_range():
     LSTMmodel.load_state_dict(torch.load(f"checkpoint/{symbol}_forecast_model.pt"))
     x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_xscaler.pkl", 'rb'))
     y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_yscaler.pkl", 'rb'))
-    result = LSTMPredict(data,x_scaler,y_scaler,LSTMmodel)
+    # result = LSTMPredict(data,x_scaler,y_scaler,LSTMmodel)
 
 
-    result['Date'] = pd.to_datetime(result['Date'])
-    result = result[['Close']]  
-    result = data_preprocessing(result, Feature_Extractor)
+    data['Date'] = pd.to_datetime(data['Date'])
+    data = data[['Close']]  
+    data = data_preprocessing(data, Feature_Extractor)
    
-    real_trend = result['Close'].tolist()
-    parameters = [result[cl].tolist() for cl in result.columns]
+    real_trend = data['Close'].tolist()
+    parameters = [data[cl].tolist() for cl in data.columns]
     minmax = pickle.load(open(f"checkpoint/{symbol}_scaler.pkl", 'rb'))
     scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
     initial_money = np.max(parameters[0]) * 5

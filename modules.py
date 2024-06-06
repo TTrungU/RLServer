@@ -141,7 +141,7 @@ class Agent:
                 'close': real_close,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
-                'date': str(date),
+                'date': date.strftime("%Y-%m-%d"),
             }
         state = self.get_state(
             window_size - 1,
@@ -161,7 +161,7 @@ class Agent:
                 'balance': self._capital,
                 'close': real_close,
                 'timestamp': str(datetime.now()),
-                'date': str(date),
+                'date': date.strftime("%Y-%m-%d"),
             }
         elif action == 2 and len(self._inventory):
             bought_price = self._inventory.pop(0)
@@ -189,12 +189,12 @@ class Agent:
                 'close': real_close,
                 'total': total,
                 'timestamp': str(datetime.now()),
-                'date': str(date),
+                'date': date.strftime("%Y-%m-%d"),
             }
         else:
             return {
                 'status': 'do nothing',
-                'date':str(date),
+                'date':date.strftime("%Y-%m-%d"),
                 'close':real_close,
                 'action': 0,
                 'balance': self._capital,

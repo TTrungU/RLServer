@@ -66,7 +66,7 @@ class DCAAgent:
                 'close': real_close,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
-                'date': str(date),
+                'date': date.strftime("%Y-%m-%d"),
             }
         state = self.get_state(
             window_size - 1,
@@ -86,7 +86,7 @@ class DCAAgent:
                 'close': real_close,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
-                'date': str(date),
+                'date': date.strftime("%Y-%m-%d"),
             }
         elif action == 2 and len(self._inventory):
             total_investment_return = 0
@@ -121,14 +121,14 @@ class DCAAgent:
                 'action': 2,
                 'close':real_close,
                 'timestamp': str(datetime.now()),
-                'date': str(date),
+                'date': date.strftime("%Y-%m-%d"),
             }
         else:
             return {
                 'status': 'do nothing',
                 'action': 0,
                 'close':real_close,
-                'date': str(date),
+                'date': date.strftime("%Y-%m-%d"),
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
             }
