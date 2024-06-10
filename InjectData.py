@@ -22,7 +22,7 @@ for file in csv_files:
     # Read the CSV file into a DataFrame
     df = pd.read_csv(file_path)
     
-    symbol = file.split(' ')[0]
+    symbol = file.split(' ')[0].split('.')[0]
     # Rename the 'Price' column to 'Close' if 'Price' exists
     if 'Price' in df.columns:
         df.rename(columns={'Price': 'Close'}, inplace=True)
