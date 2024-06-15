@@ -41,6 +41,8 @@ class DCAAgent:
         self._std = np.std(self.trend)
         self._inventory = []
         self._capital = self.initial_money
+        self._totalbuy = []
+        self._totalsell = []
         self._queue = []
         self._scaled_capital = self.minmax.transform([[self._capital] * self.num_features])[0, 0]
 
@@ -103,11 +105,14 @@ class DCAAgent:
                     ) * 100
                 except:
                     invest = 0
-
+                self._totalbuy.append(scaled_bought_price)
+                self._totalsell.append(real_close)
                 total_investment_return += invest
                 total_gain += real_close - scaled_bought_price
 
-
+            totalinvest = ( sum(self._totalsell)-sum(self._totalbuy) )/sum(self._totalbuy) *100
+            totalBuy = sum(self._totalbuy)
+            totalSell =sum(self._totalsell)
             self._scaled_capital += close * total_units
             self._capital += real_close *  total_units
              # Calculate average investment return
@@ -116,8 +121,12 @@ class DCAAgent:
                 'status': 'sold %d units, price %f' % (total_units, real_close),
                 'investment': total_investment_return,
                 'average_investment': average_investment_return,
+                'all_bought': totalBuy,
+                'all_sold': totalSell,
+                'total_investment':totalinvest,
                 'total_gain': total_gain,
                 'balance': self._capital,
+                'total_sold': total_units * real_close,
                 'action': 2,
                 'close':real_close,
                 'timestamp': str(datetime.now()),

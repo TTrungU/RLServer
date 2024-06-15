@@ -118,6 +118,9 @@ class Agent:
         self._capital = self.initial_money
         self._queue = []
         self._scaled_capital = self.minmax.transform([[self._capital] * self.num_features])[0, 0]
+        self._totalbuy = []
+        self._totalsell = []
+  
 
     def reset_capital(self, capital):
         if capital:
@@ -125,6 +128,9 @@ class Agent:
         self._scaled_capital = self.minmax.transform([[self._capital] * self.num_features])[0, 0]
         self._queue = []
         self._inventory = []
+        self._totalbuy = []
+        self._totalsell = []
+    
 
     def trade(self, data, date = None):
         window_size = 10
@@ -170,7 +176,9 @@ class Agent:
             scaled_bought_price = self.minmax.inverse_transform(
                 [[bought_price] * self.num_features]
             )[0, 0]
-
+            self._totalbuy.append(scaled_bought_price)
+            self._totalsell.append(real_close)
+            totalinvest = ( sum(self._totalsell)-sum(self._totalbuy) )/sum(self._totalbuy) *100
             total_units = len(self._inventory)
             total = total_units * real_close+ self._capital 
 
@@ -183,6 +191,7 @@ class Agent:
             return {
                 'status': 'sell 1 unit, price %f' % (real_close),
                 'investment': invest,
+                'total_investment':totalinvest,
                 'gain': real_close - scaled_bought_price,
                 'balance': self._capital,
                 'action': 2,

@@ -103,7 +103,7 @@ def main(opt):
     if opt.initial_money:
         initial_money= opt.initial_money
     else:
-        initial_money = np.max(parameters[0]) * 100
+        initial_money = np.max(parameters[0]) * 5
 
     #init model & agent
     logging.info('Construct agent.')
@@ -123,7 +123,7 @@ def main(opt):
                   window_size = opt.config.window_size)
 
     logging.info('Start training.')
-    agent.fit(iterations = 100, checkpoint = 10)
+    agent.fit(iterations = 250, checkpoint = 10)
     logging.info('Training complete.')
     #save scaler & model
 
