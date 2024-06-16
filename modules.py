@@ -161,12 +161,15 @@ class Agent:
             self._inventory.append(close)
             self._scaled_capital -= close
             self._capital -= real_close
+            total_units = len(self._inventory)
+            total = total_units * real_close+ self._capital  
             return {
                 'status': 'buy 1 unit, cost %f' % (real_close),
                 'action': 1,
                 'balance': self._capital,
                 'close': real_close,
                 'timestamp': str(datetime.now()),
+                'total': total,
                 'date': date.strftime("%Y-%m-%d"),
             }
         elif action == 2 and len(self._inventory):
@@ -178,7 +181,9 @@ class Agent:
             )[0, 0]
             self._totalbuy.append(scaled_bought_price)
             self._totalsell.append(real_close)
-            totalinvest = ( sum(self._totalsell)-sum(self._totalbuy) )/sum(self._totalbuy) *100
+            totalBuy = sum(self._totalbuy)
+            totalSell =sum(self._totalsell)
+            totalinvest = ( totalSell-totalBuy )/totalBuy *100
             total_units = len(self._inventory)
             total = total_units * real_close+ self._capital 
 
@@ -192,6 +197,8 @@ class Agent:
                 'status': 'sell 1 unit, price %f' % (real_close),
                 'investment': invest,
                 'total_investment':totalinvest,
+                'all_bought': totalBuy,
+                'all_sold': totalSell,
                 'gain': real_close - scaled_bought_price,
                 'balance': self._capital,
                 'action': 2,
@@ -201,12 +208,15 @@ class Agent:
                 'date': date.strftime("%Y-%m-%d"),
             }
         else:
+            total_units = len(self._inventory)
+            total = total_units * real_close+ self._capital  
             return {
                 'status': 'do nothing',
                 'date':date.strftime("%Y-%m-%d"),
                 'close':real_close,
                 'action': 0,
                 'balance': self._capital,
+                'total':total,
                 'timestamp': str(datetime.now()),
             }
 

@@ -123,7 +123,7 @@ def main(opt):
                   window_size = opt.config.window_size)
 
     logging.info('Start training.')
-    agent.fit(iterations = 250, checkpoint = 10)
+    agent.fit(iterations = 500, checkpoint = 10)
     logging.info('Training complete.')
     #save scaler & model
 

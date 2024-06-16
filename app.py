@@ -146,7 +146,7 @@ def trade_range():
                 initial_money = money,
                 real_trend = real_trend,
                 minmax = minmax,
-                window_size= 10)
+                window_size = 10)
         print(strategy)
     elif(strategy == 'LSS'):
         minmax = pickle.load(open(f"checkpoint/{symbol}_LSSscaler.pkl", 'rb'))
@@ -159,7 +159,7 @@ def trade_range():
                 initial_money = money,
                 real_trend = real_trend,
                 minmax = minmax,
-                window_size= 10)    
+                window_size = 10)    
     else:
         minmax = pickle.load(open(f"checkpoint/{symbol}_scaler.pkl", 'rb'))
         scaled_parameters = minmax.transform(np.array(parameters).T).T.tolist()
@@ -171,7 +171,7 @@ def trade_range():
                 initial_money = money,
                 real_trend = real_trend,
                 minmax = minmax,
-                window_size= 10)
+                window_size = 10)
     
     from_date = pd.to_datetime(from_date)
     to_date = pd.to_datetime(to_date)
@@ -239,7 +239,7 @@ def LSTMTradingPredict():
             initial_money = initial_money,
             real_trend = real_trend,
             minmax = minmax,
-            window_size= 10)
+            window_size = 10)
     window_size = 5
     prev_window_data = np.array(scaled_parameters)[:,-window_size:].T
     agent._queue = [prev_window_data[i] for i in range(window_size)]

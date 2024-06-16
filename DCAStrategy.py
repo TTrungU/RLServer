@@ -82,10 +82,13 @@ class DCAAgent:
             self._inventory.append(close)
             self._scaled_capital -= close
             self._capital -= real_close
+            total_units = len(self._inventory)
+            total = total_units * real_close+ self._capital  
             return {
                 'status': 'buy 1 unit, cost %f' % (real_close),
                 'action': 1,
                 'close': real_close,
+                'total':total,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
                 'date': date.strftime("%Y-%m-%d"),
@@ -109,12 +112,14 @@ class DCAAgent:
                 self._totalsell.append(real_close)
                 total_investment_return += invest
                 total_gain += real_close - scaled_bought_price
-
-            totalinvest = ( sum(self._totalsell)-sum(self._totalbuy) )/sum(self._totalbuy) *100
+                
             totalBuy = sum(self._totalbuy)
             totalSell =sum(self._totalsell)
+            totalinvest = ( totalSell-totalBuy )/sum(self._totalbuy) *100
             self._scaled_capital += close * total_units
             self._capital += real_close *  total_units
+            total_units = len(self._inventory)
+            total = total_units * real_close+ self._capital  
              # Calculate average investment return
             average_investment_return = total_investment_return / total_units if total_units > 0 else 0
             return {
@@ -124,6 +129,7 @@ class DCAAgent:
                 'all_bought': totalBuy,
                 'all_sold': totalSell,
                 'total_investment':totalinvest,
+                'total': total,
                 'total_gain': total_gain,
                 'balance': self._capital,
                 'total_sold': total_units * real_close,
@@ -133,13 +139,16 @@ class DCAAgent:
                 'date': date.strftime("%Y-%m-%d"),
             }
         else:
+            total_units = len(self._inventory)
+            total = total_units * real_close+ self._capital  
             return {
                 'status': 'do nothing',
                 'action': 0,
+                'total':total,
                 'close':real_close,
-                'date': date.strftime("%Y-%m-%d"),
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
+                'date': date.strftime("%Y-%m-%d"),
             }
 
     def update_realtime_record_with_action(self, action, record):
@@ -213,14 +222,8 @@ class DCAAgent:
         for t in range(0, len(self.trend) - 1, self.skip):
             action = self.act(state)
             if action == 1 and starting_money >= self.trend[t]:
-                # Use 50% of the available capital to buy
-                amount_to_use = 0.5 * starting_money
-                units_to_buy = int(amount_to_use // self.trend[t])
-            
-                if units_to_buy > 0:
-                    for _ in range(units_to_buy):
-                        inventory.append(self.trend[t])
-                        starting_money -= self.trend[t]
+                inventory.append(self.trend[t])
+                starting_money -= self.trend[t]
 
             elif action == 2 and len(inventory):
                 # bought_price = inventory.pop(0)
@@ -233,11 +236,11 @@ class DCAAgent:
                 while len(inventory) > 0:
                     bought_price = inventory.pop(0)
                     total_gain += self.trend[t] - bought_price
-                    total_investment_return += ((self.trend[t] - bought_price) / bought_price) * 100
-                
-                average_investment_return = total_investment_return / total_units if total_units > 0 else 0
+                    invest = ((self.trend[t] - bought_price) / bought_price) * 100
+                    invests.append(invest)
+           
                 starting_money += self.trend[t] * total_units
-                invests.append(average_investment_return)
+           
 
 
             state = self.get_state(

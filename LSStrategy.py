@@ -43,6 +43,8 @@ class LSSAgent:
         self._capital = self.initial_money
         self._queue = []
         self._scaled_capital = self.minmax.transform([[self._capital] * self.num_features])[0, 0]
+        self._totalbuy = []
+        self._totalsell = []
 
     def reset_capital(self, capital):
         if capital:
@@ -50,8 +52,10 @@ class LSSAgent:
         self._scaled_capital = self.minmax.transform([[self._capital] * self.num_features])[0, 0]
         self._queue = []
         self._inventory = []
+        self._totalbuy = []
+        self._totalsell = []
 
-    def trade(self, data, date = None):
+    def trade(self, data, date=None):
         window_size = 10
         scaled_data = self.minmax.transform([data])[0]
         real_close = data[0]
@@ -63,91 +67,92 @@ class LSSAgent:
             return {
                 'status': 'data not enough to trade',
                 'action': 0,
-                'close':real_close,
+                'close': real_close,
                 'balance': self._capital,
                 'timestamp': str(datetime.now()),
-                'date': date.strftime("%Y-%m-%d")
+                'date': date.strftime("%Y-%m-%d"),
             }
         state = self.get_state(
             window_size - 1,
             self._inventory,
             self._scaled_capital,
-            timeseries = np.array(self._queue).T.tolist(),
+            timeseries=np.array(self._queue).T.tolist(),
         )
         action, prob = self.act_softmax(state)
         print(prob)
         if action == 1 and self._scaled_capital >= close:
-              # Use 50% of the available capital for buying
-            
-            amount_to_use = 0.5 * self._capital
-            scaled_amount_to_use = 0.5 * self._scaled_capital
-            
-            # Calculate the number of whole units that can be bought
-            if scaled_amount_to_use >= close:
-                units_to_buy = int(scaled_amount_to_use // close)
-                real_units_to_buy = int(amount_to_use // real_close)
-                
-                if units_to_buy > 0 and real_units_to_buy > 0:
-                    # Update inventory and capital
-                    self._inventory.extend([close] * units_to_buy)
-                    self._scaled_capital -= close * units_to_buy
-                    self._capital -= real_close * real_units_to_buy
-                    
-                    return {
-                        'status': f'buy {units_to_buy} units, cost {real_close * real_units_to_buy:.2f}',
-                        'action': 1,
-                        'balance': self._capital,
-                        'timestamp': str(datetime.now()),
-                        'close':real_close,
-                        'date': date.strftime("%Y-%m-%d"),
-                    }
+            if(self._capital*2 <=real_close):
+                half_capital = self._capital
+                num_units_to_buy = 1
+            else:
+                half_capital = self._capital / 2
+                num_units_to_buy = int(half_capital // real_close)
+            if num_units_to_buy > 0:
+                total_cost = num_units_to_buy * real_close
+                for _ in range(num_units_to_buy):
+                    self._inventory.append(close)
+                self._scaled_capital -= num_units_to_buy * close
+                self._capital -= total_cost
+                total_units = len(self._inventory)
+                total = total_units * real_close+ self._capital  
+                return {
+                    'status': f'buy {num_units_to_buy} units, cost {total_cost}',
+                    'action': 1,
+                    'total': total,
+                    'balance': self._capital,
+                    'close': real_close,
+                    'timestamp': str(datetime.now()),
+                    'date': date.strftime("%Y-%m-%d"),
+                }
         elif action == 2 and len(self._inventory):
-            if(len(self._inventory)>1):
+            if len(self._inventory) <= 2:
+                num_units_to_sell = len(self._inventory)
+            else:
                 num_units_to_sell = len(self._inventory) // 2
-            else: 
-                num_units_to_sell = 1
-            total_gain = 0
-            total_investment_return = 0
-            
+            total_revenue = num_units_to_sell * real_close
+            gains = 0
             for _ in range(num_units_to_sell):
                 bought_price = self._inventory.pop(0)
-                self._scaled_capital += close
-                self._capital += real_close
                 scaled_bought_price = self.minmax.inverse_transform(
                     [[bought_price] * self.num_features]
                 )[0, 0]
-                try:
-                    invest = (
-                        (real_close - scaled_bought_price) / scaled_bought_price
-                    ) * 100
-                except:
-                    invest = 0
-                total_gain += real_close - scaled_bought_price
-                total_investment_return += invest
-            average_investment_return = total_investment_return / num_units_to_sell if num_units_to_sell > 0 else 0
-            total = len(self._inventory)* real_close+ self._capital
-            
+                self._totalbuy.append(scaled_bought_price)
+                self._totalsell.append(real_close)
+                gains += real_close - scaled_bought_price
+            self._scaled_capital += num_units_to_sell * close
+            self._capital += total_revenue
+            totalinvest = (sum(self._totalsell) - sum(self._totalbuy)) / sum(self._totalbuy) * 100 if self._totalbuy else 0
+            total_units = len(self._inventory)
+            total = total_units * real_close + self._capital
+            try:
+                invest = (gains / num_units_to_sell) / (self._totalbuy[-1] if self._totalbuy else 1) * 100
+            except:
+                invest = 0
             return {
-                'status': 'sell %d units, price %f' % (num_units_to_sell,real_close*num_units_to_sell),
-                'average_investment_return': average_investment_return,
-                'investment': total_investment_return,
-                'total_gain': total_gain,
+                'status': f'sell {num_units_to_sell} units, total revenue {total_revenue}',
+                'investment': invest,
+                'total_investment': totalinvest,
+                'gain': gains,
                 'balance': self._capital,
                 'action': 2,
-                'close':real_close,
-                'total':total,
+                'close': real_close,
+                'total': total,
                 'timestamp': str(datetime.now()),
                 'date': date.strftime("%Y-%m-%d"),
             }
         else:
+            total_units = len(self._inventory)
+            total = total_units * real_close+ self._capital  
             return {
                 'status': 'do nothing',
-                'action': 0,
-                'close':real_close,
-                'balance': self._capital,
                 'date': date.strftime("%Y-%m-%d"),
+                'close': real_close,
+                'total': total,
+                'action': 0,
+                'balance': self._capital,
                 'timestamp': str(datetime.now()),
             }
+
 
     def update_realtime_record_with_action(self, action, record):
       if action == "sell" and len(self._inventory):
@@ -243,11 +248,9 @@ class LSSAgent:
                     bought_price = inventory.pop(0)
                     starting_money += self.trend[t]
                     invest = ((self.trend[t] - bought_price) / bought_price) * 100
+                    invests.append(invest)
                     total_gain += self.trend[t] - bought_price
-                    total_investment_return += invest
-
-                average_investment_return = total_investment_return / num_units_to_sell if num_units_to_sell > 0 else 0
-                invests.append(average_investment_return)
+                    total_investment_return += invest              
 
             state = self.get_state(
                 t + 1, inventory, starting_money, self.timeseries

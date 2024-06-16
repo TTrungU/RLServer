@@ -1,6 +1,6 @@
 global_seed: 18
-window_size: 10
-input_size: 363 #no_data_feature * 2 * (window_size -1) + 3
+window_size: 30
+input_size: 1163 #no_data_feature * 2 * (window_size -1) + 3
 num_parameters: 20
 skip: 1
 layer_size: 1024
