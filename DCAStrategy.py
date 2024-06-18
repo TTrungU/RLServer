@@ -118,8 +118,7 @@ class DCAAgent:
             totalinvest = ( totalSell-totalBuy )/sum(self._totalbuy) *100
             self._scaled_capital += close * total_units
             self._capital += real_close *  total_units
-            total_units = len(self._inventory)
-            total = total_units * real_close+ self._capital  
+            total = len(self._inventory) * real_close+ self._capital  
              # Calculate average investment return
             average_investment_return = total_investment_return / total_units if total_units > 0 else 0
             return {
@@ -130,7 +129,7 @@ class DCAAgent:
                 'all_sold': totalSell,
                 'total_investment':totalinvest,
                 'total': total,
-                'total_gain': total_gain,
+                'gain': total_gain,
                 'balance': self._capital,
                 'total_sold': total_units * real_close,
                 'action': 2,

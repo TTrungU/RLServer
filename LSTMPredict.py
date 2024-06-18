@@ -1,4 +1,3 @@
-import random
 import pandas as pd
 import numpy as np
 import seaborn as sb
@@ -84,6 +83,7 @@ def LSTMPredict(data,x_scaler,y_scaler,model):
 
             future_predicted.append(prediction_inv[0][0])
     return df_feedback
+
 
 def GANPredict(data, x_scaler, y_scaler, model_VAE, modelG):
     df_feedback = data.copy().reset_index(drop=True)
