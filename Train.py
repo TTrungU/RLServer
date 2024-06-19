@@ -142,95 +142,95 @@ def main(opt):
     copy_model = copy.deepcopy(agent.model)
     pickle.dump(copy_model, open(modelfile, 'wb'))
 
-    logging.info('Conduct Data for Forecasting')
-    ###
-    df['y'] = df['Close']
-    x = df.iloc[:, :-1].values
-    y = df.iloc[:, -1].values
+    # logging.info('Conduct Data for Forecasting')
+    # ###
+    # df['y'] = df['Close']
+    # x = df.iloc[:, :-1].values
+    # y = df.iloc[:, -1].values
 
-    split = int(df.shape[0]* opt.config.train_ratio)
+    # split = int(df.shape[0]* opt.config.train_ratio)
 
-    train_x, test_x = x[: split, :],  x[split:, :]
-    train_y, test_y = y[: split, ], y[split: , ]
+    # train_x, test_x = x[: split, :],  x[split:, :]
+    # train_y, test_y = y[: split, ], y[split: , ]
 
-    print(f'trainX: {train_x.shape} trainY: {train_y.shape}')
-    print(f'testX: {test_x.shape} testY: {test_y.shape}')
+    # print(f'trainX: {train_x.shape} trainY: {train_y.shape}')
+    # print(f'testX: {test_x.shape} testY: {test_y.shape}')
 
-    x_scaler = MinMaxScaler(feature_range = (0, 10))
-    y_scaler = MinMaxScaler(feature_range = (0, 10))
+    # x_scaler = MinMaxScaler(feature_range = (0, 10))
+    # y_scaler = MinMaxScaler(feature_range = (0, 10))
 
-    train_x = x_scaler.fit_transform(train_x)
-    test_x = x_scaler.transform(test_x)
+    # train_x = x_scaler.fit_transform(train_x)
+    # test_x = x_scaler.transform(test_x)
 
-    train_y = y_scaler.fit_transform(train_y.reshape(-1, 1))
-    test_y = y_scaler.transform(test_y.reshape(-1, 1))
+    # train_y = y_scaler.fit_transform(train_y.reshape(-1, 1))
+    # test_y = y_scaler.transform(test_y.reshape(-1, 1))
 
-    train_x_slide, train_y_slide = sliding_window_training(train_x, train_y,
-                                                           window = opt.config.window_size)
-    test_x_slide, test_y_slide = sliding_window_training(test_x, test_y,
-                                                         window = opt.config.window_size)
+    # train_x_slide, train_y_slide = sliding_window_training(train_x, train_y,
+    #                                                        window = opt.config.window_size)
+    # test_x_slide, test_y_slide = sliding_window_training(test_x, test_y,
+    #                                                      window = opt.config.window_size)
 
-    train_set = TimeSeriesDataset(train_x_slide, train_y_slide)
-    val_set = TimeSeriesDataset(test_x_slide, test_y_slide)
+    # train_set = TimeSeriesDataset(train_x_slide, train_y_slide)
+    # val_set = TimeSeriesDataset(test_x_slide, test_y_slide)
 
-    Custom_AlignCollate = AlignCollate()
+    # Custom_AlignCollate = AlignCollate()
 
-    train_loader = DataLoader(train_set, batch_size= opt.config.batch_size,
-                              shuffle= False,
-                              collate_fn= Custom_AlignCollate,
-                              num_workers= 2, drop_last= False)
-    val_loader = DataLoader(val_set, batch_size=opt.config.batch_size,
-                            shuffle= False,
-                            collate_fn= Custom_AlignCollate,
-                            num_workers= 2, drop_last= False)
+    # train_loader = DataLoader(train_set, batch_size= opt.config.batch_size,
+    #                           shuffle= False,
+    #                           collate_fn= Custom_AlignCollate,
+    #                           num_workers= 2, drop_last= False)
+    # val_loader = DataLoader(val_set, batch_size=opt.config.batch_size,
+    #                         shuffle= False,
+    #                         collate_fn= Custom_AlignCollate,
+    #                         num_workers= 2, drop_last= False)
 
-    logging.info('Conduct Model Forecasting')
-    forecast_model = LSTM_Model(input_size = opt.config.num_parameters,
-                                output_size = 1)
-    forecast_model.to(device)
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.AdamW(params = forecast_model.parameters(),
-                                  lr= opt.config.lr,
-                                  weight_decay = opt.config.weight_decay)
+    # logging.info('Conduct Model Forecasting')
+    # forecast_model = LSTM_Model(input_size = opt.config.num_parameters,
+    #                             output_size = 1)
+    # forecast_model.to(device)
+    # criterion = nn.MSELoss()
+    # optimizer = torch.optim.AdamW(params = forecast_model.parameters(),
+    #                               lr= opt.config.lr,
+    #                               weight_decay = opt.config.weight_decay)
 
-    train_loss_avg = Averager()
-    eval_loss_avg = Averager()
-    best_score = float('inf')
+    # train_loss_avg = Averager()
+    # eval_loss_avg = Averager()
+    # best_score = float('inf')
 
-    for epoch in tqdm(range(opt.config.num_epoch)):
-        #Training and Validation
-        epoch_loss, val_loss, lr = Trainer(forecast_model, train_loader, val_loader, criterion, optimizer, train_loss_avg, eval_loss_avg)
+    # for epoch in tqdm(range(opt.config.num_epoch)):
+    #     #Training and Validation
+    #     epoch_loss, val_loss, lr = Trainer(forecast_model, train_loader, val_loader, criterion, optimizer, train_loss_avg, eval_loss_avg)
 
-        epoch_log = f"\nEpoch: {epoch + 1}/{opt.config.num_epoch}: "
-        epoch_log += f"Train_loss: {epoch_loss:0.5f}, Val_loss: {val_loss:0.5f}, Current_lr: {lr:0.7f} \n"
+    #     epoch_log = f"\nEpoch: {epoch + 1}/{opt.config.num_epoch}: "
+    #     epoch_log += f"Train_loss: {epoch_loss:0.5f}, Val_loss: {val_loss:0.5f}, Current_lr: {lr:0.7f} \n"
 
-        if val_loss <= best_score:
-            torch.save(
-                forecast_model.state_dict(),
-                f"checkpoint/{opt.name}_forecast_model.pt"
-            )
-            best_score = val_loss
+    #     if val_loss <= best_score:
+    #         torch.save(
+    #             forecast_model.state_dict(),
+    #             f"checkpoint/{opt.name}_forecast_model.pt"
+    #         )
+    #         best_score = val_loss
 
-            logging.info(f"Saving model at epoch {epoch} with Validation Loss {val_loss}")
-            epoch_log += "-"*16
+    #         logging.info(f"Saving model at epoch {epoch} with Validation Loss {val_loss}")
+    #         epoch_log += "-"*16
 
-        print(epoch_log)
+    #     print(epoch_log)
 
-    logging.info('Login best forecast model for evaluation')
-    forecast_model.load_state_dict(torch.load(f"checkpoint/{opt.name}_forecast_model.pt"))
+    # logging.info('Login best forecast model for evaluation')
+    # forecast_model.load_state_dict(torch.load(f"checkpoint/{opt.name}_forecast_model.pt"))
 
-    #Evaluate model
-    y_true, y_pred = Evaluation(forecast_model, val_loader)
-    gt = y_scaler.inverse_transform(y_true)
-    prd = y_scaler.inverse_transform(y_pred)
+    # #Evaluate model
+    # y_true, y_pred = Evaluation(forecast_model, val_loader)
+    # gt = y_scaler.inverse_transform(y_true)
+    # prd = y_scaler.inverse_transform(y_pred)
     
-    rmse = root_mean_squared_error(gt, prd)
-    mse = mean_squared_error(gt, prd)
-    logging.info(f'Best model get score with MSE: {mse}, RMSE: {rmse}')
-    with open(f'checkpoint/{opt.name}_LSTM_xscaler.pkl', 'wb') as fopen:
-        pickle.dump(x_scaler, fopen)
-    with open(f'checkpoint/{opt.name}_LSTM_yscaler.pkl', 'wb') as fopen:
-        pickle.dump(y_scaler, fopen)    
+    # rmse = root_mean_squared_error(gt, prd)
+    # mse = mean_squared_error(gt, prd)
+    # logging.info(f'Best model get score with MSE: {mse}, RMSE: {rmse}')
+    # with open(f'checkpoint/{opt.name}_LSTM_xscaler.pkl', 'wb') as fopen:
+    #     pickle.dump(x_scaler, fopen)
+    # with open(f'checkpoint/{opt.name}_LSTM_yscaler.pkl', 'wb') as fopen:
+    #     pickle.dump(y_scaler, fopen)    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
