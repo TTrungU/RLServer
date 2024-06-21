@@ -1,16 +1,20 @@
+import os
 import argparse
 import logging
-import os
-from tqdm import tqdm
 import pandas as pd
 import numpy as np
 import yaml
 import pickle
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+
+from tqdm import tqdm
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+
 from dataset import TimeSeriesDataset, AlignCollate
 from modules import Model, LSTM_Model
 from preprocessing import Feature_Extractor, data_preprocessing
@@ -93,19 +97,22 @@ def Evaluation(forecast_model, dataloader):
 
 
 def main(opt):
+    
     logging.info('Construct dataset.')
     df = pd.read_csv(opt.data_path)
+    split = int(df.shape[0]* opt.config.train_ratio)
+    split_date = df['Date'][split]
     df = df[['Close']]
+    
     df = data_preprocessing(df, Feature_Extractor)
 
-    
+
     logging.info('Conduct Data for Forecasting')
     ###
     df['y'] = df['Close']
     x = df.iloc[:, :-1].values
     y = df.iloc[:, -1].values
 
-    split = int(df.shape[0]* opt.config.train_ratio)
 
     train_x, test_x = x[: split, :],  x[split:, :]
     train_y, test_y = y[: split, ], y[split: , ]
@@ -180,14 +187,31 @@ def main(opt):
     y_true, y_pred = Evaluation(forecast_model, val_loader)
     gt = y_scaler.inverse_transform(y_true)
     prd = y_scaler.inverse_transform(y_pred)
-    
+
+    evaluate_pred = list()
+    for indx, pred in enumerate(prd):
+        evaluate_pred.append({"Date": pd.to_datetime(split_date)+ timedelta(days=indx), "predicted": pred})
+    evaluate_pred = pd.DataFrame(evaluate_pred)
+    evaluate_pred.to_csv(f"{opt.name}_LSTM_evaluate_result.csv")
+
     rmse = root_mean_squared_error(gt, prd)
     mse = mean_squared_error(gt, prd)
     logging.info(f'Best model get score with MSE: {mse}, RMSE: {rmse}')
+
+    fig = plt.figure(figsize=(12, 8))
+    plt.plot(gt, color="black", label="Actual Close")
+    plt.plot(prd, color="blue", label="Predicted Close")
+    plt.title(f"LSTM prediction test dataset with MSE: {mse}, RMSE: {rmse}")
+    plt.ylabel(f"{opt.name}")
+    plt.xlabel("Day")
+    plt.legend(loc="upper right")
+    plt.savefig(f'{opt.name}_LSTM_evaluate_fig.png')
+
+
     with open(f'checkpoint/{opt.name}_LSTM_xscaler.pkl', 'wb') as fopen:
         pickle.dump(x_scaler, fopen)
     with open(f'checkpoint/{opt.name}_LSTM_yscaler.pkl', 'wb') as fopen:
-        pickle.dump(y_scaler, fopen)    
+        pickle.dump(y_scaler, fopen)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

@@ -105,38 +105,46 @@ class LSSAgent:
                     'date': date.strftime("%Y-%m-%d"),
                 }
         elif action == 2 and len(self._inventory):
-            if len(self._inventory) <= 2:
-                num_units_to_sell = len(self._inventory)
-            else:
-                num_units_to_sell = len(self._inventory) // 2
-            total_revenue = num_units_to_sell * real_close
-            gains = 0
-            for _ in range(num_units_to_sell):
+            total_investment_return = 0
+            total_gain = 0
+            total_units = len(self._inventory)
+            while len(self._inventory) > 0:
                 bought_price = self._inventory.pop(0)
                 scaled_bought_price = self.minmax.inverse_transform(
                     [[bought_price] * self.num_features]
                 )[0, 0]
+                try:
+                    invest = (
+                        (real_close - scaled_bought_price) / scaled_bought_price
+                    ) * 100
+                except:
+                    invest = 0
                 self._totalbuy.append(scaled_bought_price)
                 self._totalsell.append(real_close)
-                gains += real_close - scaled_bought_price
-            self._scaled_capital += num_units_to_sell * close
-            self._capital += total_revenue
-            totalinvest = (sum(self._totalsell) - sum(self._totalbuy)) / sum(self._totalbuy) * 100 if self._totalbuy else 0
-            total_units = len(self._inventory)
-            total = total_units * real_close + self._capital
-            try:
-                invest = (gains / num_units_to_sell) / (self._totalbuy[-1] if self._totalbuy else 1) * 100
-            except:
-                invest = 0
+                total_investment_return += invest
+                total_gain += real_close - scaled_bought_price
+                
+            totalBuy = sum(self._totalbuy)
+            totalSell =sum(self._totalsell)
+            totalinvest = ( totalSell-totalBuy )/sum(self._totalbuy) *100
+            self._scaled_capital += close * total_units
+            self._capital += real_close *  total_units
+            total = len(self._inventory) * real_close+ self._capital  
+             # Calculate average investment return
+            average_investment_return = total_investment_return / total_units if total_units > 0 else 0
             return {
-                'status': f'sell {num_units_to_sell} units, total revenue {total_revenue}',
-                'investment': invest,
-                'total_investment': totalinvest,
-                'gain': gains,
-                'balance': self._capital,
-                'action': 2,
-                'close': real_close,
+                'status': 'sold %d units, price %f' % (total_units, real_close),
+                'investment': total_investment_return,
+                'average_investment': average_investment_return,
+                'all_bought': totalBuy,
+                'all_sold': totalSell,
+                'total_investment':totalinvest,
                 'total': total,
+                'gain': total_gain,
+                'balance': self._capital,
+                'total_sold': total_units * real_close,
+                'action': 2,
+                'close':real_close,
                 'timestamp': str(datetime.now()),
                 'date': date.strftime("%Y-%m-%d"),
             }
@@ -215,52 +223,45 @@ class LSSAgent:
         return concat_parameters
 
     def get_reward(self, weights):
-        initial_money = self._scaled_capital
-        starting_money = initial_money
-        invests = []
-        self.model.weights = weights
-        inventory = []
-        state = self.get_state(0, inventory, starting_money, self.timeseries)
+            initial_money = self._scaled_capital
+            starting_money = initial_money
+            invests = []
+            self.model.weights = weights
+            inventory = []
+            state = self.get_state(0, inventory, starting_money, self.timeseries)
 
-        for t in range(0, len(self.trend) - 1, self.skip):
-            action = self.act(state)
-            if action == 1 and starting_money >= self.trend[t]:
-                # Use 50% of the available capital to buy
-                amount_to_use = 0.5 * starting_money
-                units_to_buy = int(amount_to_use // self.trend[t])
-                
-                if units_to_buy > 0:
-                    for _ in range(units_to_buy):
-                        inventory.append(self.trend[t])
-                        starting_money -= self.trend[t]
+            for t in range(0, len(self.trend) - 1, self.skip):
+                action = self.act(state)
+                if action == 1 and starting_money >= self.trend[t]:
+                    inventory.append(self.trend[t])
+                    starting_money -= self.trend[t]
 
-            elif action == 2 and len(inventory):
-                 # Sell 50% of the units in the inventory
-                # Sell 50% of the units in inventory
-                if(len(inventory)>1):
-                    num_units_to_sell = len(inventory) // 2
-                else: 
-                    num_units_to_sell = 1
-                total_gain = 0
-                total_investment_return = 0
+                elif action == 2 and len(inventory):
+                    # bought_price = inventory.pop(0)
+                    # starting_money += self.trend[t]
+                    # invest = ((self.trend[t] - bought_price) / bought_price) * 100
+                    # invests.append(invest)
+                    total_units = len(inventory)
+                    total_gain = 0
+                    total_investment_return = 0
+                    while len(inventory) > 0:
+                        bought_price = inventory.pop(0)
+                        total_gain += self.trend[t] - bought_price
+                        invest = ((self.trend[t] - bought_price) / bought_price) * 100
+                        invests.append(invest)
+            
+                    starting_money += self.trend[t] * total_units
+            
 
-                for _ in range(num_units_to_sell):
-                    bought_price = inventory.pop(0)
-                    starting_money += self.trend[t]
-                    invest = ((self.trend[t] - bought_price) / bought_price) * 100
-                    invests.append(invest)
-                    total_gain += self.trend[t] - bought_price
-                    total_investment_return += invest              
 
-            state = self.get_state(
-                t + 1, inventory, starting_money, self.timeseries
-            )
-
-        invests = np.mean(invests)
-        if np.isnan(invests):
-            invests = 0
-        score = (starting_money - initial_money) / initial_money * 100
-        return invests * 0.7 + score * 0.3
+                state = self.get_state(
+                    t + 1, inventory, starting_money, self.timeseries
+                )
+            invests = np.mean(invests)
+            if np.isnan(invests):
+                invests = 0
+            score = (starting_money - initial_money) / initial_money * 100
+            return invests * 0.7 + score * 0.3
 
     def fit(self, iterations, checkpoint):
         self.es.train(iterations, print_every = checkpoint)
