@@ -16,7 +16,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from dataset import TimeSeriesDataset, AlignCollate
-from modules import Model, LSTM_Model
+from modules import Model, LSTM_Attention_Model
 from preprocessing import Feature_Extractor, data_preprocessing
 from utils import Config, Averager, sliding_window_training
 
@@ -149,7 +149,7 @@ def main(opt):
                             num_workers= 2, drop_last= False)
 
     logging.info('Conduct Model Forecasting')
-    forecast_model = LSTM_Model(input_size = opt.config.num_parameters,
+    forecast_model = LSTM_Attention_Model(input_size = opt.config.num_parameters,
                                 output_size = 1)
     forecast_model.to(device)
     criterion = nn.MSELoss()
@@ -171,7 +171,7 @@ def main(opt):
         if val_loss <= best_score:
             torch.save(
                 forecast_model.state_dict(),
-                f"checkpoint/{opt.name}_forecast_model.pt"
+                f"checkpoint/{opt.name}_forecastAttention_model.pt"
             )
             best_score = val_loss
 
@@ -181,7 +181,7 @@ def main(opt):
         print(epoch_log)
 
     logging.info('Login best forecast model for evaluation')
-    forecast_model.load_state_dict(torch.load(f"checkpoint/{opt.name}_forecast_model.pt"))
+    forecast_model.load_state_dict(torch.load(f"checkpoint/{opt.name}_forecastAttention_model.pt"))
 
     #Evaluate model
     y_true, y_pred = Evaluation(forecast_model, val_loader)
@@ -192,7 +192,7 @@ def main(opt):
     for date, pred in zip(test_date, prd):
         evaluate_pred.append({"Date": pd.to_datetime(date), "predicted": pred})
     evaluate_pred = pd.DataFrame(evaluate_pred)
-    evaluate_pred.to_csv(f"{opt.name}_LSTM_evaluate_result.csv")
+    evaluate_pred.to_csv(f"{opt.name}_LSTMAttention_evaluate_result.csv")
 
     rmse = root_mean_squared_error(gt, prd)
     mse = mean_squared_error(gt, prd)
@@ -201,16 +201,16 @@ def main(opt):
     fig = plt.figure(figsize=(12, 8))
     plt.plot(gt, color="black", label="Actual Close")
     plt.plot(prd, color="blue", label="Predicted Close")
-    plt.title(f"LSTM prediction test dataset with MSE: {mse}, RMSE: {rmse}")
+    plt.title(f"LSTM-Attention prediction test dataset with MSE: {mse}, RMSE: {rmse}")
     plt.ylabel(f"{opt.name}")
     plt.xlabel("Day")
     plt.legend(loc="upper right")
-    plt.savefig(f'{opt.name}_LSTM_evaluate_fig.png')
+    plt.savefig(f'{opt.name}_LSTMAttention_evaluate_fig.png')
 
 
-    with open(f'checkpoint/{opt.name}_LSTM_xscaler.pkl', 'wb') as fopen:
+    with open(f'checkpoint/{opt.name}_LSTMAttention_xscaler.pkl', 'wb') as fopen:
         pickle.dump(x_scaler, fopen)
-    with open(f'checkpoint/{opt.name}_LSTM_yscaler.pkl', 'wb') as fopen:
+    with open(f'checkpoint/{opt.name}_LSTMAttention_yscaler.pkl', 'wb') as fopen:
         pickle.dump(y_scaler, fopen)
 
 if __name__ == '__main__':

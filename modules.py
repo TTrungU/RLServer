@@ -430,7 +430,71 @@ class CNN_LSTM_Model(nn.Module):
         prediction = self.fc(torch.flatten(h_n.permute(1, 0, 2), start_dim=1))
 
         return prediction
+
+
+
+class Attention(nn.Module):
+    def __init__(self, hidden_layer_size):
+        super(Attention, self).__init__()
+        self.hidden_layer_size = hidden_layer_size
+        self.attn = nn.Linear(hidden_layer_size * 2, hidden_layer_size)
+        self.v = nn.Parameter(torch.rand(hidden_layer_size))
+
+    def forward(self, hidden, encoder_outputs):
+        # hidden: (num_layers * num_directions, batch_size, hidden_layer_size)
+        # encoder_outputs: (batch_size, seq_len, hidden_layer_size)
+        timestep = encoder_outputs.size(1)
+        h = hidden[-1].unsqueeze(1).repeat(1, timestep, 1)  # (batch_size, seq_len, hidden_layer_size)
+        attn_energies = self.score(h, encoder_outputs)  # (batch_size, seq_len)
+        return F.softmax(attn_energies, dim=1).unsqueeze(1)  # (batch_size, 1, seq_len)
+
+    def score(self, hidden, encoder_outputs):
+        # hidden: (batch_size, seq_len, hidden_layer_size)
+        # encoder_outputs: (batch_size, seq_len, hidden_layer_size)
+        energy = torch.tanh(self.attn(torch.cat([hidden, encoder_outputs], 2)))  # (batch_size, seq_len, hidden_layer_size)
+        energy = energy.transpose(1, 2)  # (batch_size, hidden_layer_size, seq_len)
+        v = self.v.repeat(encoder_outputs.size(0), 1).unsqueeze(1)  # (batch_size, 1, hidden_layer_size)
+        energy = torch.bmm(v, energy)  # (batch_size, 1, seq_len)
+        return energy.squeeze(1)  # (batch_size, seq_len)
     
+class LSTM_Attention_Model(nn.Module):
+    def __init__(self, input_size=1, output_size=1, hidden_layer_size=128, num_rnn_layers=2, dropout=0.2):
+        super().__init__()
+        self.hidden_layer_size = hidden_layer_size
+
+        self.rnn = nn.LSTM(input_size, hidden_size=self.hidden_layer_size,
+                           num_layers=num_rnn_layers, dropout=dropout, batch_first=True)
+        self.attention = Attention(hidden_layer_size)
+        self.fc = nn.Linear(hidden_layer_size, output_size)
+
+        self.init_weights()
+
+    def init_weights(self):
+        for name, m in self.named_modules():
+            if isinstance(m, nn.Linear):
+                torch.nn.init.xavier_uniform_(m.weight)
+                m.bias.data.fill_(0.01)
+            for name, param in self.rnn.named_parameters():
+                if 'bias' in name:
+                    nn.init.constant_(param, 0.0)
+                elif 'weight_ih' in name:
+                    nn.init.kaiming_normal_(param)
+                elif 'weight_hh' in name:
+                    nn.init.orthogonal_(param)
+
+    def forward(self, x):
+        lstm_out, (h_n, c_n) = self.rnn(x)
+
+        attn_weights = self.attention(h_n, lstm_out)  # (batch_size, 1, seq_len)
+        context = torch.bmm(attn_weights, lstm_out)  # (batch_size, 1, hidden_layer_size)
+        context = context.squeeze(1)  # (batch_size, hidden_layer_size)
+
+        prediction = self.fc(context)  # (batch_size, output_size)
+
+        return prediction
+
+
+
 class VAE(nn.Module):
     def __init__(self, config, latent_dim):
         super().__init__()
