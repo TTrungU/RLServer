@@ -386,19 +386,19 @@ class LSTM_Model(nn.Module):
     return prediction
 
 
-class CNN_LSTM_Model(nn.Module):
-    def __init__(self, input_size=1, output_size=1, hidden_layer_size=128, num_rnn_layers=2, dropout=0.2, cnn_out_channels=64, kernel_size=3):
+class GRU_LSTM_Model(nn.Module):
+    def __init__(self, input_size=1, output_size=1, hidden_layer_size=128, num_gru_layers=2, num_rnn_layers=2, dropout=0.2):
         super().__init__()
         self.hidden_layer_size = hidden_layer_size
 
-        # CNN layers
-        self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=cnn_out_channels, kernel_size=kernel_size, padding=kernel_size//2)
-        self.conv2 = nn.Conv1d(in_channels=cnn_out_channels, out_channels=cnn_out_channels, kernel_size=kernel_size, padding=kernel_size//2)
-        self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
-
+        # GRU layers
+        self.gru = nn.GRU(input_size, hidden_size=self.hidden_layer_size,
+                          num_layers=num_gru_layers, dropout=dropout, batch_first=True)
+        
         # LSTM layers
-        self.rnn = nn.LSTM(cnn_out_channels, hidden_size=self.hidden_layer_size,
+        self.rnn = nn.LSTM(self.hidden_layer_size, hidden_size=self.hidden_layer_size,
                            num_layers=num_rnn_layers, dropout=dropout, batch_first=True)
+        
         self.fc = nn.Linear(num_rnn_layers * self.hidden_layer_size, output_size)
 
         self.init_weights()
@@ -415,16 +415,20 @@ class CNN_LSTM_Model(nn.Module):
                 nn.init.kaiming_normal_(param)
             elif 'weight_hh' in name:
                 nn.init.orthogonal_(param)
+        for name, param in self.gru.named_parameters():
+            if 'bias' in name:
+                nn.init.constant_(param, 0.0)
+            elif 'weight_ih' in name:
+                nn.init.kaiming_normal_(param)
+            elif 'weight_hh' in name:
+                nn.init.orthogonal_(param)
 
     def forward(self, x):
-        # Apply CNN
-        x = x.permute(0, 2, 1)  # Change shape to (batch_size, input_size, seq_length) for CNN
-        x = F.relu(self.conv1(x))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.permute(0, 2, 1)  # Change shape back to (batch_size, seq_length, cnn_out_channels)
+        # Apply GRU
+        gru_out, h_n = self.gru(x)
 
         # Apply LSTM
-        lstm_out, (h_n, le) = self.rnn(x)
+        lstm_out, (h_n, le) = self.rnn(gru_out)
 
         # Apply fully connected layer
         prediction = self.fc(torch.flatten(h_n.permute(1, 0, 2), start_dim=1))
