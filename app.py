@@ -11,7 +11,7 @@ from bson import json_util
 from preprocessing import Feature_Extractor, data_preprocessing
 from modules import Agent,Model
 from LSTMPredict import LSTMPredict, GANPredict,slide_window
-from modules import LSTM_Model, VAE, Generator
+from modules import LSTM_Model, VAE, Generator,LSTM_Attention_Model,GRU_LSTM_Model
 import torch
 from DCAStrategy import DCAAgent
 from LSStrategy import LSSAgent
@@ -74,14 +74,38 @@ def hello():
 
 @app.route('/LSTMPredict',methods = ['GET'])
 def LSTM_Predict():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     symbol = request.args.get('Symbol')
-    data = pd.read_csv(f'DataTraining/{symbol}.csv')
-    model = LSTM_Model(input_size = 20,
-                                output_size = 1)
-    model.to(device)
-    model.load_state_dict(torch.load(f"checkpoint/{symbol}_forecast_model.pt"))
-    x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_xscaler.pkl", 'rb'))
-    y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_yscaler.pkl", 'rb'))
+    type = request.args.get('Model')
+    # data = pd.read_csv(f'DataTraining/{symbol}.csv')
+    document = stock_collection.find_one({'Stockinfor.Symbol': symbol}, {'stockData.Date': 1, 'stockData.Close': 1,'stockData.Open': 1, 'stockData.High': 1, 'stockData.Low': 1, '_id': 0})
+
+# Extracting stockData from the document
+    if document:
+        stock_data = document.get('stockData', [])
+        data = pd.DataFrame(stock_data)
+        print("DataFrame from MongoDB:", data)
+    else:
+        return jsonify({"message": "Not Found"}),404
+    data = data.tail(90)
+    if(type == 'Attention'):
+        model = LSTM_Attention_Model(input_size = 20,output_size = 1)
+        model.to(device)
+        model.load_state_dict(torch.load(f"checkpoint/{symbol}_forecastAttention_model.pt",map_location=torch.device('cpu')))
+        x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTMAttention_xscaler.pkl", 'rb'))
+        y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTMAttention_yscaler.pkl", 'rb'))
+    elif(type == 'GRU'):
+        model = GRU_LSTM_Model(input_size = 20,output_size = 1)
+        model.to(device)
+        model.load_state_dict(torch.load(f"checkpoint/{symbol}_forecastGRU_model.pt",map_location=torch.device('cpu')))
+        x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTMGRU_xscaler.pkl", 'rb'))
+        y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTMGRU_yscaler.pkl", 'rb'))
+    else:
+        model = LSTM_Model(input_size = 20,output_size = 1)
+        model.to(device)
+        model.load_state_dict(torch.load(f"checkpoint/{symbol}_forecast_model.pt",map_location=torch.device('cpu')))
+        x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_xscaler.pkl", 'rb'))
+        y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_yscaler.pkl", 'rb'))
     result = LSTMPredict(data,x_scaler,y_scaler,model)
     result = Detection(result)
     result['Date'] = result['Date'].dt.strftime("%Y-%m-%d")
@@ -115,8 +139,9 @@ def trade_range():
     symbol = data.get('symbol')
     money = data.get('init_money')
     strategy = data.get('strategy')
+    type = data.get('model')
 
-    document = stock_collection.find_one({'Stockinfor.Symbol': symbol}, {'stockData.Date': 1, 'stockData.Close': 1, 'stockData.High': 1, 'stockData.Low': 1, '_id': 0})
+    document = stock_collection.find_one({'Stockinfor.Symbol': symbol}, {'stockData.Date': 1, 'stockData.Close': 1,'stockData.Open': 1, 'stockData.High': 1, 'stockData.Low': 1, '_id': 0})
 
 # Extracting stockData from the document
     if document:
@@ -131,8 +156,28 @@ def trade_range():
     df_init = data_preprocessing(df_init, Feature_Extractor)
     real_trend = df_init['Close'].tolist()
     parameters = [df_init[cl].tolist() for cl in df_init.columns]
- 
-    
+    if(type != ""):
+        if(type == 'Attention'):
+            modelLSTM = LSTM_Attention_Model(input_size = 20,output_size = 1)
+            modelLSTM.to(device)
+            modelLSTM.load_state_dict(torch.load(f"checkpoint/{symbol}_forecastAttention_model.pt",map_location=torch.device('cpu')))
+            x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTMAttention_xscaler.pkl", 'rb'))
+            y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTMAttention_yscaler.pkl", 'rb'))
+        elif(type == 'GRU'):
+            modelLSTM = GRU_LSTM_Model(input_size = 20,output_size = 1)
+            modelLSTM.to(device)
+            modelLSTM.load_state_dict(torch.load(f"checkpoint/{symbol}_forecastGRU_model.pt",map_location=torch.device('cpu')))
+            x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTMGRU_xscaler.pkl", 'rb'))
+            y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTMGRU_yscaler.pkl", 'rb'))
+        elif(type == 'LSTM'):
+            modelLSTM = LSTM_Model(input_size = 20,output_size = 1)
+            modelLSTM.to(device)
+            modelLSTM.load_state_dict(torch.load(f"checkpoint/{symbol}_forecast_model.pt",map_location=torch.device('cpu')))
+            x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_xscaler.pkl", 'rb'))
+            y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_yscaler.pkl", 'rb'))
+        predictResult = LSTMPredict(df,x_scaler,y_scaler,modelLSTM)
+        df = pd.DataFrame(predictResult)
+        df['Close'] = df['Close'].fillna(df['forecast'])
     # initial_money = np.max(parameters[0]) * 2
     skip = 1
     if(strategy == 'DCA'):
@@ -178,6 +223,7 @@ def trade_range():
 
     df = df[['Date', 'Close']]
     #Preprocess Dataframe
+    print("ALERT DF TAIL",df.tail)
     df = data_preprocessing(df, Feature_Extractor)
 
     selected_data = df.loc[(df['Date'] >= from_date) & (df['Date'] <= to_date),:]
@@ -195,11 +241,11 @@ def trade_range():
         result = agent.trade(value, date = date)
         trade_results.append(result)
 
-    trading_collection.insert_one({
-        "UserId": data.get('UserId'),
-        "StockSymbol": data.get('Symbol'),
-        "HistoryTrading":trade_results
-    })
+    # trading_collection.insert_one({
+    #     "UserId": data.get('UserId'),
+    #     "StockSymbol": data.get('Symbol'),
+    #     "HistoryTrading":trade_results
+    # })
     return jsonify(trade_results)
 
 
@@ -216,7 +262,7 @@ def LSTMTradingPredict():
     LSTMmodel = LSTM_Model(input_size = 20,
                                 output_size = 1)
     LSTMmodel.to(device)
-    LSTMmodel.load_state_dict(torch.load(f"checkpoint/{symbol}_forecast_model.pt"))
+    LSTMmodel.load_state_dict(torch.load(f"checkpoint/{symbol}_forecast_model.pt",map_location=torch.device('cpu')))
     x_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_xscaler.pkl", 'rb'))
     y_scaler = pickle.load(open(f"checkpoint/{symbol}_LSTM_yscaler.pkl", 'rb'))
     # result = LSTMPredict(data,x_scaler,y_scaler,LSTMmodel)
