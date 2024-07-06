@@ -143,7 +143,7 @@ class Agent:
         self._queue.append(scaled_data)
         if len(self._queue) < window_size:
             return {
-                'status': 'data not enough to trade',
+                'status': 'Do nothing',
                 'action': 0,
                 'close': real_close,
                 'balance': self._capital,
@@ -165,7 +165,7 @@ class Agent:
             total_units = len(self._inventory)
             total = total_units * real_close+ self._capital  
             return {
-                'status': 'buy 1 unit, cost %f' % (real_close),
+                'status': 'Buy 1 unit, cost %.2f' % (round(real_close,2)),
                 'action': 1,
                 'balance': self._capital,
                 'close': real_close,
@@ -195,7 +195,7 @@ class Agent:
             except:
                 invest = 0
             return {
-                'status': 'sell 1 unit, price %f' % (real_close),
+                'status': 'Sell 1 unit, price %.2f' % (round(real_close,2)),
                 'investment': invest,
                 'total_investment':totalinvest,
                 'all_bought': totalBuy,
@@ -212,7 +212,7 @@ class Agent:
             total_units = len(self._inventory)
             total = total_units * real_close+ self._capital  
             return {
-                'status': 'do nothing',
+                'status': 'Do nothing',
                 'date':date.strftime("%Y-%m-%d"),
                 'close':real_close,
                 'action': 0,

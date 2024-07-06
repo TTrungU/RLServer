@@ -63,7 +63,7 @@ class DCAAgent:
         self._queue.append(scaled_data)
         if len(self._queue) < window_size:
             return {
-                'status': 'data not enough to trade',
+                'status': 'Do nothing',
                 'action': 0,
                 'close': real_close,
                 'balance': self._capital,
@@ -85,7 +85,7 @@ class DCAAgent:
             total_units = len(self._inventory)
             total = total_units * real_close+ self._capital  
             return {
-                'status': 'buy 1 unit, cost %f' % (real_close),
+                'status': 'Buy 1 unit, cost %.2f' % (round(real_close,2)),
                 'action': 1,
                 'close': real_close,
                 'total':total,
@@ -122,7 +122,7 @@ class DCAAgent:
              # Calculate average investment return
             average_investment_return = total_investment_return / total_units if total_units > 0 else 0
             return {
-                'status': 'sold %d units, price %f' % (total_units, real_close),
+                'status': 'Sold %d units, price %.2f' % (total_units, round(real_close,2)),
                 'investment': total_investment_return,
                 'average_investment': average_investment_return,
                 'all_bought': totalBuy,
@@ -141,7 +141,7 @@ class DCAAgent:
             total_units = len(self._inventory)
             total = total_units * real_close+ self._capital  
             return {
-                'status': 'do nothing',
+                'status': 'Do nothing',
                 'action': 0,
                 'total':total,
                 'close':real_close,

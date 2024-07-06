@@ -87,7 +87,7 @@ def LSTM_Predict():
         print("DataFrame from MongoDB:", data)
     else:
         return jsonify({"message": "Not Found"}),404
-    data = data.tail(90)
+    data = data.tail(360)
     if(type == 'Attention'):
         model = LSTM_Attention_Model(input_size = 20,output_size = 1)
         model.to(device)

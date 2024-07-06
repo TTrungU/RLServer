@@ -65,7 +65,7 @@ class LSSAgent:
         self._queue.append(scaled_data)
         if len(self._queue) < window_size:
             return {
-                'status': 'data not enough to trade',
+                'status': 'Do nothing',
                 'action': 0,
                 'close': real_close,
                 'balance': self._capital,
@@ -96,7 +96,7 @@ class LSSAgent:
                 total_units = len(self._inventory)
                 total = total_units * real_close+ self._capital  
                 return {
-                    'status': f'buy {num_units_to_buy} units, cost {total_cost}',
+                    'status': f'Buy {num_units_to_buy} units, cost {total_cost:.2f}',
                     'action': 1,
                     'total': total,
                     'balance': self._capital,
@@ -133,7 +133,7 @@ class LSSAgent:
              # Calculate average investment return
             average_investment_return = total_investment_return / total_units if total_units > 0 else 0
             return {
-                'status': 'sold %d units, price %f' % (total_units, real_close),
+                'status': 'sold %d units, price %.2f' % (total_units, round(real_close,2)),
                 'investment': total_investment_return,
                 'average_investment': average_investment_return,
                 'all_bought': totalBuy,
