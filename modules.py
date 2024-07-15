@@ -33,24 +33,24 @@ class Deep_Evolution_Strategy:
         return self.weights
 
     def train(self, epoch = 200, print_every = 1):
-        lasttime = time.time()
+        lasttime = time.time() # thời gian bắt đầu
         for i in range(epoch):
-            population = []
-            rewards = np.zeros(self.population_size)
+            population = [] # tạo quần thể
+            rewards = np.zeros(self.population_size) # mảng phần thưởng cho quần thể
             for k in range(self.population_size):
                 x = []
                 for w in self.weights:
-                    x.append(np.random.randn(*w.shape))
-                population.append(x)
-            for k in range(self.population_size):
+                    x.append(np.random.randn(*w.shape)) # Tạo nhiễu ngẫu nhiên với cùng kích thước như trọng số
+                population.append(x) # thêm bộ trọng số mới vào quần thể
+            for k in range(self.population_size): # đánh giá quần thể
                 weights_population = self._get_weight_from_population(
                     self.weights, population[k]
                 )
-                rewards[k] = self.reward_function(weights_population)
-            rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-7)
-            for index, w in enumerate(self.weights):
-                A = np.array([p[index] for p in population])
-                self.weights[index] = (
+                rewards[k] = self.reward_function(weights_population) # tính phần thưởng cho mỗi trông số
+            rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-7) # chuẩn hóa
+            for index, w in enumerate(self.weights): # cập nhật trọng số
+                A = np.array([p[index] for p in population]) # lấy từng trọng số trong quần thể
+                self.weights[index] = ( # cập nhật trọng số bằng cách sử dụng tiến hóa
                     w
                     + self.learning_rate
                     / (self.population_size * self.sigma)
